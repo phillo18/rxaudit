@@ -7,7 +7,6 @@
   <!-- Firebase SDK (compat mode - works without ES modules) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <style>
@@ -842,7 +841,6 @@ var FIREBASE_CONFIG = {
 // FIREBASE INIT — loads SDK from CDN, no ES modules
 // ============================================================
 var _db = null;
-var _storage = null;
 var _fbReady = false;
 
 function _initFirebase(){
@@ -854,7 +852,6 @@ function _initFirebase(){
     firebase.initializeApp(FIREBASE_CONFIG);
   }
   _db = firebase.firestore();
-  _storage = firebase.storage();
   // Enable offline persistence so app works even with poor connection
   _db.enablePersistence({synchronizeTabs:true}).catch(function(err){
     if(err.code==='failed-precondition'){
