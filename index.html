@@ -842,6 +842,7 @@ var FIREBASE_CONFIG = {
 // ============================================================
 var _db = null;
 var _fbReady = false;
+var _fbLoadError = null;
 
 function _initFirebase(){
   if(!window.firebase){
@@ -922,6 +923,7 @@ function _loadCacheFromFirebase(onDone){
     onDone();
   }).catch(function(err){
     console.error('Cache load error:', err);
+    _fbLoadError = err;
     onDone(); // Continue with local data if Firebase fails
   });
 }
@@ -3180,7 +3182,21 @@ document.addEventListener('DOMContentLoaded', function(){
 
   function done(){
     if(loginBtn) loginBtn.disabled = false;
-    if(loadingEl) loadingEl.style.display = 'none';
+    if(!loadingEl) return;
+    if(!_fbReady){
+      loadingEl.textContent='⚠ Cloud sync unavailable — using data on this device only';
+      loadingEl.style.color='#c05621';
+    } else if(_fbLoadError){
+      loadingEl.textContent='⚠ Cloud sync error ('+(_fbLoadError.code||_fbLoadError.message||'unknown')+') — using data on this device only';
+      loadingEl.style.color='#c05621';
+    } else if(_cache.users !== null){
+      loadingEl.textContent='✓ Synced '+_cache.users.length+' account(s) from cloud';
+      loadingEl.style.color='var(--green)';
+      setTimeout(function(){loadingEl.style.display='none';},4000);
+    } else {
+      loadingEl.textContent='☁ Cloud connected — no shared data yet (will sync from this device)';
+      loadingEl.style.color='var(--muted)';
+    }
   }
 
   try{
@@ -3191,6 +3207,7 @@ document.addEventListener('DOMContentLoaded', function(){
     });
   }catch(e){
     console.warn('Firebase init/load failed, continuing offline:', e);
+    _fbLoadError = e;
     done();
   }
 });
