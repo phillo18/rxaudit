@@ -176,6 +176,8 @@ textarea:focus{border-color:var(--teal);}
 .sidebar-section.mobile-nav{display:none;}
 /* ===== MOBILE / IPHONE STYLES ===== */
 @media(max-width:768px){
+  /* Prevent iOS Safari from auto-zooming the page when a field is focused */
+  input,select,textarea{font-size:16px!important;}
   .layout{flex-direction:column;}
   .sidebar{width:100%;min-height:auto;padding:0;order:2;position:fixed;bottom:0;left:0;right:0;z-index:200;box-shadow:0 -2px 12px rgba(0,0,0,0.2);}
   .sidebar-section{display:none;}
@@ -1368,6 +1370,9 @@ function doLogin(){
   initApp();
   showPage('dashboard');
   _attachRealtimeListeners();
+  // Re-render once layout has settled — first paint can occur before cloud-loaded
+  // data (e.g. nurse list) is reflected in the DOM on some devices.
+  setTimeout(renderDashboard,150);
 }
 
 function doLogout(){
