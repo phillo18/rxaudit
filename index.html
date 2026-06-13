@@ -989,16 +989,21 @@ function defaultSettings(){
     clinics:[]};
 }
 function getSettings(){
+  var s;
   if(_cache.settings !== null){
-    var s=_cache.settings;
-    var old=['Gold Coast Aesthetics','Coastal Skin Clinic','Burleigh Beauty Med',
-      'Pacific Fair Aesthetics','Southport Skin Studio'];
-    if(s.clinics) s.clinics=s.clinics.filter(function(c){return old.indexOf(c)<0;});
-    return s;
+    s=_cache.settings;
+  } else {
+    try{ s=JSON.parse(localStorage.getItem('rxaudit_settings')); }catch(e){}
   }
-  try{ var s2=JSON.parse(localStorage.getItem('rxaudit_settings'));
-    if(s2){ _cache.settings=s2; return s2; } }catch(e){}
-  return defaultSettings();
+  if(!s) s=defaultSettings();
+  // Ensure all default fields exist (e.g. if loaded from Firestore with a partial/empty object)
+  var def=defaultSettings();
+  Object.keys(def).forEach(function(k){ if(s[k]===undefined) s[k]=def[k]; });
+  var old=['Gold Coast Aesthetics','Coastal Skin Clinic','Burleigh Beauty Med',
+    'Pacific Fair Aesthetics','Southport Skin Studio'];
+  s.clinics=s.clinics.filter(function(c){return old.indexOf(c)<0;});
+  _cache.settings=s;
+  return s;
 }
 function saveSettings(key, value){
   var s=getSettings(); s[key]=value; _cache.settings=s;
