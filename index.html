@@ -1080,11 +1080,57 @@ function saveSuppliers(list){
   localStorage.setItem('rxaudit_suppliers',JSON.stringify(list));
   _pushToFirebase('suppliers', list);
 }
-function saveSupplier(supplier){
+function upsertSupplier(supplier){
   var list=getSuppliers();
   var idx=list.findIndex(function(s){return s.id===supplier.id;});
   if(idx>=0) list[idx]=supplier; else list.push(supplier);
   saveSuppliers(list);
+}
+function fillSupplierSelect(){
+  var sel=document.getElementById('delivSupplier');if(!sel)return;
+  var current=sel.value;
+  var supps=getSuppliers();
+  sel.innerHTML='<option value="">Select supplier…</option>'+supps.map(function(s){
+    return '<option value="'+s.name+'">'+s.name+'</option>';
+  }).join('');
+  if(current&&supps.some(function(s){return s.name===current;}))sel.value=current;
+}
+function openSupplierModal(id){
+  var supplier=id?getSuppliers().find(function(s){return s.id===id;}):null;
+  document.getElementById('supplierModalTitle').textContent=supplier?'Edit Supplier':'Add Supplier';
+  document.getElementById('editSupplierId').value=supplier?supplier.id:'';
+  document.getElementById('suppName').value=supplier?supplier.name:'';
+  document.getElementById('suppProducts').value=supplier?(supplier.products||''):'';
+  document.getElementById('suppContact').value=supplier?(supplier.contact||''):'';
+  document.getElementById('suppPhone').value=supplier?(supplier.phone||''):'';
+  document.getElementById('suppEmail').value=supplier?(supplier.email||''):'';
+  document.getElementById('suppLicence').value=supplier?(supplier.licence||''):'';
+  document.getElementById('supplierModal').classList.add('open');
+}
+function closeSupplierModal(){document.getElementById('supplierModal').classList.remove('open');}
+function editSupplier(id){openSupplierModal(id);}
+function deleteSupplier(id){
+  if(!confirm('Delete this supplier?'))return;
+  saveSuppliers(getSuppliers().filter(function(s){return s.id!==id;}));
+  renderSuppliers();fillSupplierSelect();
+  showToast('✓ Supplier deleted');
+}
+function saveSupplier(){
+  var id=document.getElementById('editSupplierId').value;
+  var name=document.getElementById('suppName').value.trim();
+  if(!name){showToast('Company name is required');return;}
+  var supplier={
+    id:id?Number(id):Date.now(),
+    name:name,
+    products:document.getElementById('suppProducts').value.trim(),
+    contact:document.getElementById('suppContact').value.trim(),
+    phone:document.getElementById('suppPhone').value.trim(),
+    email:document.getElementById('suppEmail').value.trim(),
+    licence:document.getElementById('suppLicence').value.trim()
+  };
+  upsertSupplier(supplier);
+  closeSupplierModal();renderSuppliers();fillSupplierSelect();
+  showToast(id?'✓ Supplier updated':'✓ Supplier added');
 }
 
 // ── SHARED DOCS ──
