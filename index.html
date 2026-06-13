@@ -1106,7 +1106,9 @@ function fillSupplierSelect(){
   // Default to the supplier last used for this clinic (or overall if none yet)
   var clinic=document.getElementById('delivClinic')?document.getElementById('delivClinic').value:'';
   var last=getLastDeliverySupplier(clinic)||getLastDeliverySupplier('');
-  if(last&&supps.some(function(s){return s.name===last;}))sel.value=last;
+  if(last&&supps.some(function(s){return s.name===last;})){sel.value=last;return;}
+  // No usage history yet — if there's only one supplier on file, default to it
+  if(supps.length===1)sel.value=supps[0].name;
 }
 function openSupplierModal(id){
   var supplier=id?getSuppliers().find(function(s){return s.id===id;}):null;
