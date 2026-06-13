@@ -104,6 +104,11 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .drug-row{display:grid;grid-template-columns:200px 80px 80px 80px 80px 1fr;gap:8px;align-items:center;padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:white;margin-bottom:6px;font-size:13px;}
 .drug-row.header{background:var(--navy);color:white;font-size:10px;font-weight:700;text-transform:uppercase;border-color:var(--navy);}
 .drug-row input[type="number"]{border:1px solid var(--border);border-radius:5px;padding:5px 7px;font-size:13px;font-family:var(--mono);width:100%;text-align:right;outline:none;}
+.drug-field-label{display:none;}
+.stepper{display:flex;align-items:center;gap:6px;}
+.stepper button{width:26px;height:26px;flex-shrink:0;border-radius:6px;border:1px solid var(--border);background:#f8fafc;font-size:15px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.stepper button:hover{border-color:var(--teal);}
+.stepper-val{flex:1;min-width:0;text-align:center;font-family:var(--mono);font-weight:600;font-size:13px;}
 .drug-name{font-weight:500;}
 .variance{font-family:var(--mono);font-size:12px;}
 .variance.ok{color:var(--green);}.variance.warn{color:var(--red);font-weight:700;}
@@ -175,8 +180,8 @@ textarea:focus{border-color:var(--teal);}
   .layout{flex-direction:column;}
   .sidebar{width:100%;min-height:auto;padding:0;order:2;position:fixed;bottom:0;left:0;right:0;z-index:200;box-shadow:0 -2px 12px rgba(0,0,0,0.2);}
   .sidebar-section{display:none;}
-  .sidebar-section.mobile-nav{display:flex!important;flex-direction:row;justify-content:space-around;align-items:stretch;margin:0;padding:0;width:100%;}
-  .nav-item{flex-direction:column;gap:2px;padding:8px 4px;font-size:9px;text-align:center;border-left:none!important;border-top:3px solid transparent;min-width:0;flex:1;}
+  .sidebar-section.mobile-nav{display:flex!important;flex-direction:row;justify-content:flex-start;align-items:stretch;margin:0;padding:0;width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .nav-item{flex-direction:column;gap:2px;padding:8px 4px;font-size:9px;text-align:center;border-left:none!important;border-top:3px solid transparent;min-width:54px;flex:1 0 auto;}
   .nav-item.active{border-top-color:var(--teal);border-left:none;background:rgba(0,184,162,0.15);}
   .nav-icon{font-size:18px;width:auto;}
   .main{padding:12px;padding-bottom:80px;order:1;}
@@ -192,9 +197,13 @@ textarea:focus{border-color:var(--teal);}
   .form-row{grid-template-columns:1fr;}
   .page-header{flex-direction:column;gap:10px;}
   .page-title{font-size:18px;}
-  .drug-row{grid-template-columns:1fr 55px 55px 55px 55px 60px;font-size:12px;}
-  .drug-row.header{font-size:9px;}
-  .delivery-drug-row{grid-template-columns:1fr 55px 90px 100px 70px 28px;gap:5px;}
+  .drug-row{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;font-size:13px;padding:12px;}
+  .drug-row.header{display:none;}
+  .drug-row .drug-name{grid-column:1/-1;font-size:14px;font-weight:700;color:var(--navy);}
+  .drug-row .variance{grid-column:1/-1;text-align:right;font-size:13px;padding-top:2px;border-top:1px solid var(--border);}
+  .drug-field-label{display:block;font-size:10px;color:var(--muted);text-transform:uppercase;font-weight:700;margin-bottom:3px;}
+  .delivery-drug-row{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--border);border-radius:8px;margin-bottom:10px;background:white;}
+  .delivery-drug-row .del-row-btn{align-self:flex-end;width:auto;padding:4px 12px;border:1px solid var(--red);border-radius:6px;color:var(--red);background:transparent;font-size:12px;}
   .print-option{flex-direction:column;align-items:flex-start;}
   .modal{width:95vw;padding:20px;}
   .table{font-size:11px;}
@@ -205,7 +214,6 @@ textarea:focus{border-color:var(--teal);}
 }
 @media(max-width:380px){
   .clinic-grid{grid-template-columns:1fr;}
-  .drug-row{grid-template-columns:120px 50px 50px 50px 50px 55px;}
 }
 </style>
 </head>
@@ -282,6 +290,7 @@ textarea:focus{border-color:var(--teal);}
       <div class="nav-item" data-page="documents" onclick="showPage('documents')"><span class="nav-icon">📁</span>Docs</div>
       <div class="nav-item" data-page="reports" onclick="showPage('reports')"><span class="nav-icon">🖨️</span>Reports</div>
       <div class="nav-item hidden" id="mobileAdminBtn" data-page="users" onclick="showPage('users')"><span class="nav-icon">👥</span>Admin</div>
+      <div class="nav-item hidden" id="mobileSettingsBtn" data-page="settings" onclick="showPage('settings')"><span class="nav-icon">⚙️</span>Settings</div>
     </div>
   </div>
 
@@ -1304,6 +1313,8 @@ function doLogin(){
   document.getElementById('headerTitle').textContent=isAdmin()?'S4 Drug Compliance \u2014 QLD Health':user.clinic+' \u2014 S4 Compliance';
   var mobileAdmin=document.getElementById('mobileAdminBtn');
   if(mobileAdmin)mobileAdmin.classList.toggle('hidden',!isAdmin());
+  var mobileSettings=document.getElementById('mobileSettingsBtn');
+  if(mobileSettings)mobileSettings.classList.toggle('hidden',!isAdmin());
   initApp();
   showPage('dashboard');
   _attachRealtimeListeners();
