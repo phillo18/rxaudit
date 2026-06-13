@@ -1,0 +1,3223 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RX·AUDIT — S4 Drug Compliance</title>
+  <!-- Firebase SDK (compat mode - works without ES modules) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --navy:#0f1f3d;--navy-mid:#1a2f54;--navy-light:#243d6e;
+  --teal:#00b8a2;--teal-light:#00d4bc;
+  --amber:#f5a623;--red:#e53e3e;--green:#38a169;
+  --purple:#805ad5;
+  --bg:#f0f4f8;--card:#ffffff;--border:#dde3ec;
+  --text:#1a202c;--muted:#718096;--mono:'JetBrains Mono',monospace;
+}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;}
+.login-screen{position:fixed;inset:0;background:var(--navy);display:flex;align-items:center;justify-content:center;z-index:1000;}
+.login-box{background:white;border-radius:16px;padding:40px;width:400px;box-shadow:0 24px 80px rgba(0,0,0,0.4);}
+.login-logo{font-family:var(--mono);font-size:13px;letter-spacing:0.2em;color:var(--teal);text-transform:uppercase;font-weight:500;margin-bottom:4px;}
+.login-title{font-size:22px;font-weight:700;color:var(--navy);margin-bottom:4px;}
+.login-sub{font-size:13px;color:var(--muted);margin-bottom:28px;}
+.lf{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
+.lf label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:var(--muted);}
+.lf input{border:1px solid var(--border);border-radius:7px;padding:10px 12px;font-size:14px;font-family:'Inter',sans-serif;outline:none;width:100%;}
+.lf input:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(0,184,162,0.12);}
+.login-btn{width:100%;padding:12px;background:var(--teal);color:var(--navy);border:none;border-radius:7px;font-size:14px;font-weight:700;cursor:pointer;margin-top:8px;}
+.login-btn:hover{background:var(--teal-light);}
+.login-error{color:var(--red);font-size:12px;margin-top:8px;display:none;}
+.login-footer{margin-top:20px;padding-top:16px;border-top:1px solid var(--border);font-size:11px;color:var(--muted);text-align:center;line-height:1.6;}
+.hidden{display:none!important;}
+.header{background:var(--navy);color:white;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,0.3);}
+.header-left{display:flex;align-items:center;gap:12px;}
+.header-logo{font-family:var(--mono);font-size:11px;letter-spacing:0.15em;color:var(--teal);text-transform:uppercase;font-weight:500;}
+.header-title{font-size:15px;font-weight:600;}
+.header-right{display:flex;align-items:center;gap:8px;}
+.badge{background:var(--teal);color:var(--navy);font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:0.05em;text-transform:uppercase;}
+.badge.amber{background:var(--amber);}
+.user-chip{display:flex;align-items:center;gap:7px;background:rgba(255,255,255,0.08);border-radius:20px;padding:4px 12px 4px 6px;}
+.user-avatar{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;}
+.avatar-rdp{background:var(--teal);color:var(--navy);}
+.avatar-admin{background:var(--purple);color:white;}
+.avatar-nurse{background:var(--amber);color:var(--navy);}
+.user-name{font-size:12px;color:rgba(255,255,255,0.85);}
+.user-role{font-size:10px;color:rgba(255,255,255,0.45);}
+.logout-btn{background:rgba(255,255,255,0.08);border:none;color:rgba(255,255,255,0.6);font-size:11px;padding:4px 10px;border-radius:5px;cursor:pointer;margin-left:4px;}
+.logout-btn:hover{background:rgba(255,255,255,0.15);color:white;}
+.layout{display:flex;min-height:calc(100vh - 56px);}
+.sidebar{width:220px;background:var(--navy-mid);color:white;flex-shrink:0;padding:20px 0;}
+.sidebar-label{font-size:9px;letter-spacing:0.15em;text-transform:uppercase;color:rgba(255,255,255,0.35);padding:0 16px;margin-bottom:6px;font-weight:600;}
+.sidebar-section{margin-bottom:20px;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 16px;cursor:pointer;font-size:13px;color:rgba(255,255,255,0.7);transition:all 0.15s;border-left:3px solid transparent;}
+.nav-item:hover{background:rgba(255,255,255,0.05);color:white;}
+.nav-item.active{background:rgba(0,184,162,0.15);color:var(--teal-light);border-left-color:var(--teal);font-weight:500;}
+.nav-icon{font-size:15px;width:18px;text-align:center;}
+.main{flex:1;padding:24px;overflow-x:hidden;}
+.page{display:none;}.page.active{display:block;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px;margin-bottom:16px;}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+.card-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--navy);}
+.page-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;}
+.page-title{font-size:22px;font-weight:700;color:var(--navy);}
+.page-sub{font-size:13px;color:var(--muted);margin-top:3px;}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;}
+.stat-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;font-weight:600;margin-bottom:6px;}
+.stat-value{font-size:28px;font-weight:700;color:var(--navy);font-family:var(--mono);}
+.stat-sub{font-size:11px;color:var(--muted);margin-top:4px;}
+.stat-card.alert{border-left:3px solid var(--red);}
+.stat-card.ok{border-left:3px solid var(--green);}
+.stat-card.warn{border-left:3px solid var(--amber);}
+.clinic-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;}
+.clinic-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px;cursor:pointer;transition:all 0.15s;}
+.clinic-card:hover{border-color:var(--teal);}
+.clinic-card.done{border-left:3px solid var(--green);}
+.clinic-card.pending{border-left:3px solid var(--amber);}
+.clinic-name{font-weight:600;font-size:13px;color:var(--navy);margin-bottom:4px;}
+.clinic-status{font-size:11px;display:flex;align-items:center;gap:5px;}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;}
+.dot.green{background:var(--green);}.dot.amber{background:var(--amber);}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+.form-row.three{grid-template-columns:1fr 1fr 1fr;}
+.field{display:flex;flex-direction:column;gap:5px;}
+.field label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:var(--muted);}
+.field select,.field input{border:1px solid var(--border);border-radius:6px;padding:8px 10px;font-size:13px;font-family:'Inter',sans-serif;color:var(--text);background:white;outline:none;}
+.field select:focus,.field input:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(0,184,162,0.1);}
+.field input[readonly]{background:#f1f5f9;color:var(--muted);}
+.checklist{display:flex;flex-direction:column;gap:8px;}
+.check-item{display:flex;align-items:center;gap:12px;padding:10px 14px;border:1px solid var(--border);border-radius:7px;cursor:pointer;background:white;}
+.check-item:hover{border-color:var(--teal);}
+.check-item.checked{border-color:var(--green);background:rgba(56,161,105,0.04);}
+.check-item input[type="checkbox"]{width:16px;height:16px;accent-color:var(--green);cursor:pointer;flex-shrink:0;}
+.check-label{font-size:13px;flex:1;}
+.check-item.checked .check-label{color:var(--muted);text-decoration:line-through;}
+.check-req{font-size:10px;color:var(--muted);margin-left:auto;text-transform:uppercase;white-space:nowrap;}
+.check-req.mandatory{color:var(--red);font-weight:600;}
+.drug-row{display:grid;grid-template-columns:200px 80px 80px 80px 80px 1fr;gap:8px;align-items:center;padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:white;margin-bottom:6px;font-size:13px;}
+.drug-row.header{background:var(--navy);color:white;font-size:10px;font-weight:700;text-transform:uppercase;border-color:var(--navy);}
+.drug-row input[type="number"]{border:1px solid var(--border);border-radius:5px;padding:5px 7px;font-size:13px;font-family:var(--mono);width:100%;text-align:right;outline:none;}
+.drug-name{font-weight:500;}
+.variance{font-family:var(--mono);font-size:12px;}
+.variance.ok{color:var(--green);}.variance.warn{color:var(--red);font-weight:700;}
+.btn{padding:9px 18px;border-radius:7px;border:none;cursor:pointer;font-size:13px;font-weight:600;font-family:'Inter',sans-serif;display:inline-flex;align-items:center;gap:7px;transition:all 0.15s;}
+.btn-primary{background:var(--teal);color:var(--navy);}
+.btn-primary:hover{background:var(--teal-light);}
+.btn-navy{background:var(--navy);color:white;}
+.btn-navy:hover{background:var(--navy-light);}
+.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text);}
+.btn-ghost:hover{border-color:var(--teal);color:var(--teal);}
+.btn-red{background:transparent;border:1px solid var(--red);color:var(--red);}
+.btn-sm{padding:6px 12px;font-size:12px;}
+.upload-zone{border:2px dashed var(--border);border-radius:10px;padding:28px;text-align:center;cursor:pointer;background:#fafbfd;}
+.upload-zone:hover{border-color:var(--teal);}
+.upload-zone.has-file{border-color:var(--green);background:rgba(56,161,105,0.04);border-style:solid;}
+.upload-icon{font-size:32px;margin-bottom:8px;}
+.upload-label{font-size:13px;color:var(--muted);}
+.upload-label strong{color:var(--teal);}
+.table{width:100%;border-collapse:collapse;font-size:13px;}
+.table th{text-align:left;padding:8px 12px;background:var(--navy);color:white;font-size:10px;text-transform:uppercase;font-weight:600;}
+.table td{padding:9px 12px;border-bottom:1px solid var(--border);}
+.table tr:last-child td{border-bottom:none;}
+.table tr:hover td{background:#f8fafc;}
+.pill{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;}
+.pill.green{background:rgba(56,161,105,0.12);color:var(--green);}
+.pill.amber{background:rgba(245,166,35,0.15);color:#b7791f;}
+.pill.red{background:rgba(229,62,62,0.12);color:var(--red);}
+.pill.blue{background:rgba(66,153,225,0.12);color:#2b6cb0;}
+.pill.purple{background:rgba(128,90,213,0.12);color:#6b46c1;}
+.pill.teal{background:rgba(0,184,162,0.12);color:#006d5b;}
+.alert-box{padding:12px 16px;border-radius:8px;font-size:13px;margin-bottom:16px;display:flex;align-items:flex-start;gap:10px;}
+.alert-box.info{background:rgba(0,184,162,0.08);border:1px solid rgba(0,184,162,0.25);color:#065666;}
+.alert-box.warn{background:rgba(245,166,35,0.1);border:1px solid rgba(245,166,35,0.3);color:#744210;}
+.alert-box.purple{background:rgba(128,90,213,0.08);border:1px solid rgba(128,90,213,0.25);color:#44337a;}
+.print-option{background:white;border:1px solid var(--border);border-radius:8px;padding:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;}
+.print-option-info h4{font-size:14px;font-weight:600;margin-bottom:3px;}
+.print-option-info p{font-size:12px;color:var(--muted);}
+.sig-box{border:1px solid var(--border);border-radius:7px;padding:12px;background:#fafbfd;font-size:12px;color:var(--muted);text-align:center;height:60px;display:flex;align-items:center;justify-content:center;margin-bottom:12px;}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--navy);color:white;padding:12px 20px;border-radius:8px;font-size:13px;font-weight:500;box-shadow:0 4px 20px rgba(0,0,0,0.3);display:none;align-items:center;gap:8px;z-index:999;border-left:3px solid var(--teal);}
+.toast.show{display:flex;}
+textarea{border:1px solid var(--border);border-radius:6px;padding:10px;font-size:13px;font-family:'Inter',sans-serif;width:100%;resize:vertical;outline:none;}
+textarea:focus{border-color:var(--teal);}
+.empty-state{text-align:center;padding:40px;color:var(--muted);}
+.empty-state .empty-icon{font-size:40px;margin-bottom:12px;}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:500;display:none;align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal{background:white;border-radius:12px;padding:28px;width:520px;max-height:88vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);}
+.modal-title{font-size:18px;font-weight:700;color:var(--navy);margin-bottom:18px;}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;}
+.delivery-drug-row{display:grid;grid-template-columns:1fr 70px 120px 120px 90px 32px;gap:8px;align-items:center;margin-bottom:8px;}
+.delivery-drug-row input,.delivery-drug-row select{border:1px solid var(--border);border-radius:6px;padding:7px 8px;font-size:13px;width:100%;outline:none;font-family:'Inter',sans-serif;}
+.delivery-drug-row input:focus,.delivery-drug-row select:focus{border-color:var(--teal);}
+.del-row-btn{background:none;border:none;cursor:pointer;color:var(--muted);font-size:16px;padding:4px;border-radius:4px;}
+.del-row-btn:hover{color:var(--red);}
+.monthly-reminder{background:linear-gradient(135deg,rgba(128,90,213,0.1),rgba(0,184,162,0.08));border:1px solid rgba(128,90,213,0.3);border-radius:10px;padding:16px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.monthly-reminder-text h4{font-size:14px;font-weight:700;color:var(--purple);margin-bottom:3px;}
+.monthly-reminder-text p{font-size:12px;color:var(--muted);}
+.audit-agenda-item{border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:10px;background:white;}
+.agenda-opt-label{display:flex;align-items:flex-start;gap:8px;padding:7px 8px;border-radius:5px;cursor:pointer;background:#f8fafc;margin-bottom:4px;border:1px solid transparent;transition:all 0.12s;}
+.agenda-opt-label:hover{background:#eef7f5;border-color:var(--teal);}
+.agenda-opt-label:has(input:checked){background:#e8f5e9;border-color:var(--green);}
+.audit-agenda-item .item-header{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.audit-agenda-item .item-num{width:24px;height:24px;border-radius:50%;background:var(--navy);color:white;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.audit-agenda-item .item-title{font-size:13px;font-weight:600;flex:1;}
+
+.sidebar-section.mobile-nav{display:none;}
+/* ===== MOBILE / IPHONE STYLES ===== */
+@media(max-width:768px){
+  .layout{flex-direction:column;}
+  .sidebar{width:100%;min-height:auto;padding:0;order:2;position:fixed;bottom:0;left:0;right:0;z-index:200;box-shadow:0 -2px 12px rgba(0,0,0,0.2);}
+  .sidebar-section{display:none;}
+  .sidebar-section.mobile-nav{display:flex!important;flex-direction:row;justify-content:space-around;align-items:stretch;margin:0;padding:0;width:100%;}
+  .nav-item{flex-direction:column;gap:2px;padding:8px 4px;font-size:9px;text-align:center;border-left:none!important;border-top:3px solid transparent;min-width:0;flex:1;}
+  .nav-item.active{border-top-color:var(--teal);border-left:none;background:rgba(0,184,162,0.15);}
+  .nav-icon{font-size:18px;width:auto;}
+  .main{padding:12px;padding-bottom:80px;order:1;}
+  .header{height:48px;padding:0 12px;}
+  .header-title{display:none;}
+  .header-logo{font-size:10px;}
+  .user-name{font-size:11px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .user-role{display:none;}
+  .badge{display:none;}
+  .grid-4{grid-template-columns:1fr 1fr;}
+  .clinic-grid{grid-template-columns:1fr 1fr;}
+  .form-row.three{grid-template-columns:1fr;}
+  .form-row{grid-template-columns:1fr;}
+  .page-header{flex-direction:column;gap:10px;}
+  .page-title{font-size:18px;}
+  .drug-row{grid-template-columns:1fr 55px 55px 55px 55px 60px;font-size:12px;}
+  .drug-row.header{font-size:9px;}
+  .delivery-drug-row{grid-template-columns:1fr 55px 90px 100px 70px 28px;gap:5px;}
+  .print-option{flex-direction:column;align-items:flex-start;}
+  .modal{width:95vw;padding:20px;}
+  .table{font-size:11px;}
+  .table th,.table td{padding:6px 8px;}
+  .btn-sm{padding:7px 10px;font-size:12px;}
+  .monthly-reminder{flex-direction:column;}
+  .audit-agenda-item{padding:10px;}
+}
+@media(max-width:380px){
+  .clinic-grid{grid-template-columns:1fr;}
+  .drug-row{grid-template-columns:120px 50px 50px 50px 50px 55px;}
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo">RX·AUDIT</div>
+    <div class="login-title">S4 Drug Compliance</div>
+    <div class="login-sub">QLD Health — Medicines and Poisons Act 2019</div>
+    <div class="lf"><label>Username</label><input type="text" id="loginUsername" placeholder="Your username" autocomplete="username" onkeydown="if(event.key==='Enter')document.getElementById('loginPin').focus()"></div>
+    <div class="lf"><label>PIN</label><input type="password" id="loginPin" placeholder="Enter your PIN" maxlength="8" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <button class="login-btn" id="loginBtn" onclick="doLogin()">Sign in →</button>
+    <div class="login-error" id="loginError">Incorrect username or PIN.</div>
+    <div id="loginLoading" style="display:none;text-align:center;font-size:12px;color:var(--muted);margin-top:8px;">Syncing with cloud…</div>
+    <div class="login-footer">Default admin login: <strong>drphilip</strong> / PIN <strong>1234</strong><br>Nurse accounts are created by an administrator.<br>All records saved locally to this device.</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="appShell" class="hidden">
+<div class="header">
+  <div class="header-left">
+    <div class="header-logo">RX·AUDIT</div>
+    <div class="header-title" id="headerTitle">S4 Drug Compliance — QLD Health</div>
+  </div>
+  <div class="header-right">
+    <span class="badge">MPA 2019</span>
+    <span class="badge amber hidden" id="pendingBadge"></span>
+    <div class="user-chip">
+      <div class="user-avatar" id="userAvatar">?</div>
+      <div><div class="user-name" id="userNameEl">—</div><div class="user-role" id="userRoleEl">—</div></div>
+    </div>
+    <button class="logout-btn" onclick="doLogout()">Sign out</button>
+  </div>
+</div>
+
+<div class="layout">
+  <div class="sidebar">
+    <!-- Desktop sidebar -->
+    <div class="sidebar-section">
+      <div class="sidebar-label">Overview</div>
+      <div class="nav-item active" data-page="dashboard" onclick="showPage('dashboard')"><span class="nav-icon">📊</span> Dashboard</div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Daily Tasks</div>
+      <div class="nav-item" data-page="stocktake" onclick="showPage('stocktake')"><span class="nav-icon">🧮</span> Daily Stocktake</div>
+      <div class="nav-item" data-page="checklist" onclick="showPage('checklist')"><span class="nav-icon">✅</span> Compliance Check</div>
+      <div class="nav-item" data-page="delivery" onclick="showPage('delivery')"><span class="nav-icon">📦</span> Stock Deliveries</div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Monthly</div>
+      <div class="nav-item" data-page="meeting" onclick="showPage('meeting')"><span class="nav-icon">🗓️</span> Audit Meeting</div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Records</div>
+      <div class="nav-item" data-page="log" onclick="showPage('log')"><span class="nav-icon">📋</span> Audit Log</div>
+      <div class="nav-item" data-page="reports" onclick="showPage('reports')"><span class="nav-icon">🖨️</span> Print Reports</div>
+      <div class="nav-item" data-page="documents" onclick="showPage('documents')"><span class="nav-icon">📁</span> Documents</div>
+    </div>
+    <div class="sidebar-section hidden" id="adminNav">
+      <div class="sidebar-label">Admin Only</div>
+      <div class="nav-item" data-page="users" onclick="showPage('users')"><span class="nav-icon">👥</span> Accounts</div>
+      <div class="nav-item" data-page="settings" onclick="showPage('settings')"><span class="nav-icon">⚙️</span> Settings</div>
+    </div>
+    <!-- Mobile bottom nav bar -->
+    <div class="sidebar-section mobile-nav">
+      <div class="nav-item" data-page="dashboard" onclick="showPage('dashboard')"><span class="nav-icon">📊</span>Home</div>
+      <div class="nav-item" data-page="stocktake" onclick="showPage('stocktake')"><span class="nav-icon">🧮</span>Stock</div>
+      <div class="nav-item" data-page="delivery" onclick="showPage('delivery')"><span class="nav-icon">📦</span>Delivery</div>
+      <div class="nav-item" data-page="meeting" onclick="showPage('meeting')"><span class="nav-icon">🗓️</span>Meeting</div>
+      <div class="nav-item" data-page="log" onclick="showPage('log')"><span class="nav-icon">📋</span>Log</div>
+      <div class="nav-item" data-page="documents" onclick="showPage('documents')"><span class="nav-icon">📁</span>Docs</div>
+      <div class="nav-item" data-page="reports" onclick="showPage('reports')"><span class="nav-icon">🖨️</span>Reports</div>
+      <div class="nav-item hidden" id="mobileAdminBtn" data-page="users" onclick="showPage('users')"><span class="nav-icon">👥</span>Admin</div>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-header">
+        <div>
+          <div class="page-title" id="dashTitle">Daily Overview</div>
+          <div class="page-sub" id="todayDate"></div>
+        </div>
+        <button class="btn btn-primary" onclick="showPage('stocktake')">+ New Stocktake</button>
+      </div>
+      <div id="monthlyReminderBanner"></div>
+      <div id="docNotificationBanner"></div>
+      <div class="grid-4" style="margin-bottom:20px;">
+        <div class="stat-card warn"><div class="stat-label">Pending Today</div><div class="stat-value" id="statPending">—</div><div class="stat-sub" id="statPendingSub">clinics</div></div>
+        <div class="stat-card ok"><div class="stat-label">Completed Today</div><div class="stat-value" id="statCompleted">—</div><div class="stat-sub">stocktakes</div></div>
+        <div class="stat-card ok"><div class="stat-label">Total Records</div><div class="stat-value" id="statTotal">—</div><div class="stat-sub">visible to you</div></div>
+        <div class="stat-card alert"><div class="stat-label">Variances</div><div class="stat-value" id="statVariances">—</div><div class="stat-sub">total logged</div></div>
+      </div>
+      <div class="card-title" style="margin-bottom:12px;" id="clinicGridTitle">Clinic Status — Today</div>
+      <div id="clinicStatusGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;"></div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Recent Activity</div>
+          <button class="btn btn-ghost btn-sm" onclick="showPage('log')">View full log →</button>
+        </div>
+        <div id="recentActivityTable"></div>
+      </div>
+    </div>
+
+    <!-- STOCKTAKE -->
+    <div class="page" id="page-stocktake">
+      <div class="page-header">
+        <div><div class="page-title">Daily Stocktake</div><div class="page-sub">Complete at opening and closing of each trading day</div></div>
+        <button class="btn btn-ghost" onclick="showPage('dashboard')">← Back</button>
+      </div>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:14px;">Session Details</div>
+        <div class="form-row three">
+          <div class="field"><label>Nurse</label><select id="stockClinic" onchange="loadLastStocktake()"></select></div>
+          <div class="field"><label>Stocktake Type</label><select id="stockType"><option>Opening (start of day)</option><option>Closing (end of day)</option><option>Mid-session check</option></select></div>
+          <div class="field"><label>Completed by</label><input type="text" id="stockNurse"></div>
+        </div>
+        <div class="form-row">
+          <div class="field"><label>Date</label><input type="date" id="stockDate"></div>
+          <div class="field"><label>Time</label><input type="time" id="stockTime"></div>
+        </div>
+        <div id="lastStocktakeBanner" class="alert-box info hidden"><span>🕐</span><div id="lastStocktakeBannerText"></div></div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:14px;">S4 Drug Physical Count</div>
+        <div class="alert-box info"><span>ℹ️</span><div>Opening balances are pre-filled from the last stocktake. Any unprocessed deliveries have been added automatically. Enter the actual physical count for each drug.</div></div>
+        <div class="drug-row header">
+          <div>Drug / Product</div><div style="text-align:right;">Opening Bal.</div><div style="text-align:right;">Administered</div><div style="text-align:right;">Wasted</div><div style="text-align:right;">Physical Count</div><div>Variance</div>
+        </div>
+        <div id="drugRows"></div>
+        <div style="margin-top:12px;" class="field">
+          <label>Add a drug to this stocktake</label>
+          <div style="display:flex;gap:8px;">
+            <input type="text" id="customDrugName" placeholder="Type drug name and strength (e.g. Xeomin 100U vial)..." style="flex:1;">
+            <button class="btn btn-ghost btn-sm" onclick="addCustomDrug()">+ Add row</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:14px;">Variance Explanation</div>
+        <div class="field">
+          <label>Written explanation for any variance (mandatory — MPA s.60)</label>
+          <textarea id="varianceNote" style="height:80px;" placeholder="e.g. Dysport variance: one vial broken during prep — wastage documented. Notified Dr Philip."></textarea>
+        </div>
+        <div id="deliveryAdjustmentNote" class="alert-box info hidden" style="margin-top:12px;margin-bottom:0;"><span>📦</span><div id="deliveryAdjustmentText"></div></div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:14px;">Storage &amp; Security Check</div>
+        <div class="checklist">
+          <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox" id="chk1"><span class="check-label">Drug storage locked and secured — not accessible to patients</span><span class="check-req mandatory">Mandatory</span></label>
+          <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox" id="chk2"><span class="check-label">Refrigerator temperature within range (2–8°C)</span><span class="check-req mandatory">Mandatory</span></label>
+          <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox" id="chk3"><span class="check-label">Drug register present and entries up to date</span><span class="check-req mandatory">Mandatory</span></label>
+          <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox" id="chk4"><span class="check-label">No expired or damaged stock in active supply</span><span class="check-req mandatory">Mandatory</span></label>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:14px;">Declaration</div>
+        <div class="alert-box info"><span>📋</span><div>By submitting, you confirm this stocktake was conducted personally and all entries are accurate, as required under the Medicines and Poisons Act 2019 (Qld).</div></div>
+        <div class="form-row">
+          <div class="field"><label>Full name</label><input type="text" id="nurseFullName"></div>
+          <div class="field"><label>AHPRA registration number</label><input type="text" id="nurseAhpra"></div>
+        </div>
+        <div class="sig-box">Digital signature — coming soon</div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;">
+          <button class="btn btn-primary" onclick="submitStocktake()">Submit stocktake ✓</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- COMPLIANCE -->
+    <div class="page" id="page-checklist">
+      <div class="page-header">
+        <div><div class="page-title">Compliance Checklist</div><div class="page-sub">QLD Health — Medicines and Poisons Act 2019</div></div>
+        <button class="btn btn-ghost" onclick="showPage('dashboard')">← Back</button>
+      </div>
+      <div class="form-row" style="margin-bottom:16px;">
+        <div class="field"><label>Nurse</label><select id="complianceClinic"></select></div>
+        <div class="field"><label>Check type</label><select id="complianceType"><option>Daily check</option><option>Weekly check</option><option>Monthly audit</option></select></div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:14px;">Storage &amp; Security</div>
+        <div class="checklist">
+          <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox" class="comp-chk"><span class="check-label">S4 drugs stored in locked, dedicated receptacle not accessible to patients</span><span class="check-req mandatory">MPA s.57</span></label>
+          <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox" class="comp-chk"><span class="check-label">Storage accessible only to authorised persons</span><span class="check-req mandatory">MPA s.57</span></label>
+          <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox" class="comp-chk"><span class="check-label">Temperature-sensitive drugs within range — temp log maintained</span><span class="check-req mandatory">Mandatory</span></label>
+          <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox" class="comp-chk"><span class="check-label">No expired stock in active supply</span><span class="check-req mandatory">Mandatory</span></label>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:14px;">Drug Register</div>
+        <div class="checklist">
+          <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox" class="comp-chk"><span class="check-label">Drug register maintained and entries current</span><span class="check-req mandatory">MPA s.54</span></label>
+          <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox" class="comp-chk"><span class="check-label">Entries include date, drug, quantity, running balance</span><span class="check-req mandatory">Mandatory</span></label>
+          <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox" class="comp-chk"><span class="check-label">Entries signed — no erasures</span><span class="check-req mandatory">Mandatory</span></label>
+          <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox" class="comp-chk"><span class="check-label">Register retained for minimum 2 years</span><span class="check-req mandatory">MPA s.54</span></label>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:14px;">Prescribing &amp; Supply Chain</div>
+        <div class="checklist">
+          <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox" class="comp-chk"><span class="check-label">Current standing orders / prescriptions on file</span><span class="check-req mandatory">Mandatory</span></label>
+          <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox" class="comp-chk"><span class="check-label">Drugs sourced from licensed suppliers — invoices retained</span><span class="check-req mandatory">Mandatory</span></label>
+          <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox" class="comp-chk"><span class="check-label">Batch numbers of all current stock recorded</span><span class="check-req mandatory">Mandatory</span></label>
+          <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox" class="comp-chk"><span class="check-label">RDP contact details displayed at clinic</span><span class="check-req">Best Practice</span></label>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:14px;">Wastage &amp; Discrepancy</div>
+        <div class="checklist">
+          <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox" class="comp-chk"><span class="check-label">All wastage documented with reason and witness</span><span class="check-req mandatory">Mandatory</span></label>
+          <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox" class="comp-chk"><span class="check-label">Discrepancies reported to RDP same day</span><span class="check-req mandatory">Mandatory</span></label>
+          <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox" class="comp-chk"><span class="check-label">Significant discrepancies reported to QLD Health within 7 days</span><span class="check-req mandatory">MPA s.60</span></label>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button class="btn btn-primary" onclick="submitCompliance()">Submit check ✓</button>
+      </div>
+    </div>
+
+    <!-- DELIVERY -->
+    <div class="page" id="page-delivery">
+      <div class="page-header">
+        <div><div class="page-title">Stock Delivery</div><div class="page-sub">Delivered quantities are added to the next stocktake automatically</div></div>
+        <button class="btn btn-ghost" onclick="showPage('dashboard')">← Back</button>
+      </div>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:14px;">Delivery Details</div>
+        <div class="form-row three">
+          <div class="field"><label>Nurse / Clinic</label><select id="delivClinic" onchange="refreshDeliveryDrugDropdowns()"></select></div>
+          <div class="field"><label>Supplier</label><select id="delivSupplier"></select></div>
+          <div class="field"><label>Invoice / Order number</label><input type="text" id="delivInvoice" placeholder="INV-2024-XXXXX"></div>
+        </div>
+        <div class="form-row">
+          <div class="field"><label>Delivery date</label><input type="date" id="delivDate"></div>
+          <div class="field"><label>Received by</label><input type="text" id="delivNurse"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:14px;">Drugs Received</div>
+        <div style="display:grid;grid-template-columns:1fr 70px 120px 120px 90px 32px;gap:8px;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--muted);padding:0 4px;margin-bottom:8px;">
+          <div>Drug (select existing or type new name)</div><div>Qty</div><div>Batch No.</div><div>Expiry</div><div>Notes</div><div></div>
+        </div>
+        <div id="deliveryItems"></div>
+        <button class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="addDeliveryRow()">+ Add another drug</button>
+        <div class="alert-box info" style="margin-top:14px;margin-bottom:0;"><span>📦</span><div>Existing drugs show in the dropdown. Type a new name to add a new drug — it will be created in the stocktake automatically.</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:14px;">Upload Delivery Docket / Invoice Photo</div>
+        <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+          <div class="upload-icon" id="uploadIcon">📷</div>
+          <div class="upload-label"><strong>Tap to photograph or upload</strong> delivery docket or invoice</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:6px;">JPG, PNG or PDF</div>
+          <input type="file" id="fileInput" accept="image/*,.pdf" style="display:none;" onchange="handleFileUpload(this)">
+        </div>
+        <div id="uploadedFiles" style="margin-top:10px;display:none;">
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#f0fff4;border:1px solid #9ae6b4;border-radius:7px;font-size:13px;">
+            <span>📄</span><span id="fileNameEl" style="flex:1;color:var(--green);font-weight:500;"></span>
+            <span id="fileSizeEl" style="color:var(--muted);font-size:11px;"></span>
+            <button class="btn btn-ghost btn-sm" onclick="removeFile()">✕</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:12px;">Delivery Verification</div>
+        <div class="checklist">
+          <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox" id="dchk1"><span class="check-label">Quantity received matches invoice</span><span class="check-req mandatory">Mandatory</span></label>
+          <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox" id="dchk2"><span class="check-label">Batch numbers recorded and match packaging</span><span class="check-req mandatory">Mandatory</span></label>
+          <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox" id="dchk3"><span class="check-label">Cold chain maintained on arrival</span><span class="check-req mandatory">Mandatory</span></label>
+          <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox" id="dchk4"><span class="check-label">Stock transferred to locked storage immediately</span><span class="check-req mandatory">Mandatory</span></label>
+          <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox" id="dchk5"><span class="check-label">Drug register updated</span><span class="check-req mandatory">Mandatory</span></label>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button class="btn btn-primary" onclick="submitDelivery()">Record delivery ✓</button>
+      </div>
+    </div>
+
+    <!-- AUDIT MEETING -->
+    <div class="page" id="page-meeting">
+      <div class="page-header">
+        <div><div class="page-title">S4 Compliance Audit Meeting</div><div class="page-sub">Monthly — Medicines and Poisons Act 2019</div></div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost" onclick="showPage('dashboard')">← Back</button>
+          <button class="btn btn-ghost btn-sm" onclick="showPage('log')">Past meetings →</button>
+        </div>
+      </div>
+      <div class="alert-box purple"><span>📅</span><div>This meeting must be held monthly and records retained for 2 years (MPA 2019). The completed form should be signed, saved, and available for QLD Health inspection.</div></div>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:14px;">Meeting Details</div>
+        <div class="form-row three">
+          <div class="field"><label>Nurse</label><select id="meetingClinic"></select></div>
+          <div class="field"><label>Meeting date</label><input type="date" id="meetingDate"></div>
+          <div class="field"><label>Meeting time</label><input type="time" id="meetingTime"></div>
+        </div>
+        <div class="form-row">
+          <div class="field"><label>Meeting location / method</label><select id="meetingMethod"><option>In person at clinic</option><option>Video call (Zoom / Teams)</option><option>Phone call</option><option>Other</option></select></div>
+          <div class="field"><label>Period covered</label><input type="text" id="meetingPeriod" placeholder="e.g. June 2025"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:14px;">Attendees</div>
+        <div id="meetingAttendeesTable"></div>
+        <button class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick="addMeetingAttendee()">+ Add attendee</button>
+      </div>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:14px;">Agenda — Items for Discussion</div>
+        <div id="meetingAgenda"></div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:14px;">Action Items &amp; Follow-up</div>
+        <div style="margin-bottom:12px;">
+          <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:var(--muted);margin-bottom:8px;">Common action items — tap to add</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;" id="quickActions">
+            <button class="btn btn-ghost btn-sm" onclick="addQuickAction('Review and update drug storage lock — confirm new key holder')">🔒 Update key holder</button>
+            <button class="btn btn-ghost btn-sm" onclick="addQuickAction('Obtain updated prescription/standing order from RDP')">📋 Update prescription</button>
+            <button class="btn btn-ghost btn-sm" onclick="addQuickAction('Complete drug register reconciliation for missing entries')">📒 Register reconciliation</button>
+            <button class="btn btn-ghost btn-sm" onclick="addQuickAction('Order replacement stock — current levels low')">📦 Order stock</button>
+            <button class="btn btn-ghost btn-sm" onclick="addQuickAction('Dispose of expired stock and document disposal')">🗑 Dispose expired stock</button>
+            <button class="btn btn-ghost btn-sm" onclick="addQuickAction('Complete S4 competency renewal training')">🎓 Competency renewal</button>
+            <button class="btn btn-ghost btn-sm" onclick="addQuickAction('Review and update clinic emergency contact list')">📞 Update contacts</button>
+            <button class="btn btn-ghost btn-sm" onclick="addQuickAction('Submit variance report to QLD Health')">⚠️ QLD Health report</button>
+            <button class="btn btn-ghost btn-sm" onclick="addQuickAction('Schedule next compliance audit meeting')">📅 Schedule next meeting</button>
+          </div>
+        </div>
+        <div id="meetingActions"></div>
+        <button class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick="addMeetingAction()">+ Add custom action item</button>
+      </div>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:14px;">Additional Notes / Comments</div>
+        <div style="margin-bottom:10px;">
+          <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:var(--muted);margin-bottom:8px;">Common entries — tap to append</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;">
+            <button class="btn btn-ghost btn-sm" onclick="appendNote('No concerns raised by either party. Meeting concluded satisfactorily.')">✓ No concerns</button>
+            <button class="btn btn-ghost btn-sm" onclick="appendNote('Nurse confirmed full understanding of all S4 obligations under MPA 2019.')">📋 MPA obligations confirmed</button>
+            <button class="btn btn-ghost btn-sm" onclick="appendNote('RDP reviewed all records remotely prior to meeting and confirmed satisfactory.')">🔍 Remote review completed</button>
+            <button class="btn btn-ghost btn-sm" onclick="appendNote('Clinic operating at full compliance. No regulatory concerns identified.')">✅ Full compliance</button>
+            <button class="btn btn-ghost btn-sm" onclick="appendNote('New drug product added to clinic formulary — register and standing order updated.')">💉 New drug added</button>
+            <button class="btn btn-ghost btn-sm" onclick="appendNote('Staff change noted — new nurse orientation to S4 procedures completed.')">👤 Staff change</button>
+            <button class="btn btn-ghost btn-sm" onclick="appendNote('QLD Health audit notification received. Preparation checklist reviewed.')">🏥 Audit notification</button>
+            <button class="btn btn-ghost btn-sm" onclick="appendNote('Clinic temporarily closed — no S4 activity for this period.')">🚫 Clinic closed period</button>
+          </div>
+        </div>
+        <div class="field">
+          <textarea id="meetingNotes" style="height:100px;" placeholder="Any additional matters raised, decisions made, or other relevant information..."></textarea>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:14px;">Authorisation &amp; Sign-off</div>
+        <div class="alert-box info"><span>📋</span><div>Both the Responsible Drug Person and the nurse are recorded as having authorised this meeting record. Records must be retained for 2 years (MPA 2019). Print the PDF and have both parties sign the printed copy.</div></div>
+        <div class="form-row" style="margin-bottom:8px;">
+          <div class="field">
+            <label style="color:var(--teal);font-weight:700;">Responsible Drug Person (RDP)</label>
+            <input type="text" id="signRdpName" placeholder="RDP full name" readonly style="background:#f1f5f9;">
+            <input type="text" id="signRdpAhpra" placeholder="RDP AHPRA number" readonly style="margin-top:6px;font-family:monospace;background:#f1f5f9;">
+          </div>
+          <div class="field">
+            <label style="color:var(--amber);font-weight:700;">Nurse / Injector</label>
+            <input type="text" id="signNurseName" placeholder="Nurse full name" readonly style="background:#f1f5f9;">
+            <input type="text" id="signNurseAhpra" placeholder="Nurse AHPRA number" readonly style="margin-top:6px;font-family:monospace;background:#f1f5f9;">
+          </div>
+        </div>
+        <div class="alert-box warn" style="margin-bottom:12px;"><span>🖊️</span><div>Print the PDF and obtain wet-ink signatures from both parties on the printed copy. File the signed copy at the clinic.</div></div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;">
+          <button class="btn btn-ghost" onclick="exportMeetingPDF()">🖨️ Print / PDF</button>
+          <button class="btn btn-primary" onclick="submitMeeting()">Submit &amp; save record ✓</button>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- DOCUMENTS & FILES -->
+    <div class="page" id="page-documents">
+      <div class="page-header">
+        <div><div class="page-title">Documents &amp; Files</div><div class="page-sub" id="docsPageSub">Clinic compliance documents and nurse profile files</div></div>
+        <button class="btn btn-ghost" onclick="showPage('dashboard')">← Back</button>
+      </div>
+      <!-- SHARED CLINIC DOCS -->
+      <div class="card" id="sharedDocsCard">
+        <div class="card-header">
+          <div class="card-title">📁 Shared Clinic Documents</div>
+          <div id="sharedDocsAdminBtn"></div>
+        </div>
+        <div class="alert-box info"><span>📋</span><div>Documents uploaded here are visible to all nurse portals. Nurses are notified on next login.</div></div>
+        <div id="sharedDocsList"></div>
+      </div>
+      <!-- NURSE PROFILE DOCS -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title" id="nurseDocsTitle">📄 My Documents</div>
+          <div id="nurseDocsAdminSelect"></div>
+        </div>
+        <!-- Nurse self-upload zone (shown for nurses) -->
+        <div id="nurseUploadWrapper">
+          <label for="nurseFileInputSelf" class="upload-zone" style="margin-bottom:12px;display:block;cursor:pointer;">
+            <div class="upload-icon">📄</div>
+            <div class="upload-label"><strong>Tap here to upload your documents</strong><br>
+              <span style="font-size:12px;">Certificates, training records, personal compliance docs</span>
+            </div>
+          </label>
+          <input type="file" id="nurseFileInputSelf" style="display:none;" multiple
+            accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.txt"
+            onchange="handleNurseUploadSelf(this)">
+        </div>
+        <!-- Admin upload zone for selected nurse (shown for admin) -->
+        <div id="adminNurseUploadWrapper">
+          <div style="border:2px dashed #b07000;border-radius:10px;padding:20px;text-align:center;background:rgba(245,166,35,0.05);margin-bottom:12px;">
+            <div style="font-size:28px;margin-bottom:8px;">📎</div>
+            <div style="margin-bottom:10px;">
+              <strong style="color:#b07000;">Upload to Nurse Profile</strong><br>
+              <span style="font-size:12px;color:var(--muted);">Certificates, registration, assessments, clinical records</span>
+            </div>
+            <button type="button" class="btn btn-sm" style="background:#b07000;color:white;border:none;font-size:13px;padding:8px 20px;"
+              onclick="document.getElementById('adminNurseFileInput').click()">
+              📎 Choose Files
+            </button>
+          </div>
+          <input type="file" id="adminNurseFileInput" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" multiple
+            accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.txt"
+            onchange="handleAdminNurseUpload(this)">
+        </div>
+        <div id="nurseDocsList"></div>
+      </div>
+    </div>
+
+    <!-- AUDIT LOG -->
+    <div class="page" id="page-log">
+      <div class="page-header">
+        <div><div class="page-title">Audit Log</div><div class="page-sub" id="logSub">All S4 drug records</div></div>
+        <button class="btn btn-ghost" onclick="showPage('dashboard')">← Back</button>
+      </div>
+      <div class="card" style="padding:14px;">
+        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+          <div class="field" style="flex:1;min-width:140px;"><label>Nurse</label><select id="filterClinic"></select></div>
+          <div class="field" style="flex:1;min-width:120px;"><label>Type</label><select id="filterType"><option value="">All types</option><option>Stocktake</option><option>Delivery</option><option>Compliance</option><option>Meeting</option></select></div>
+          <div class="field" style="flex:1;min-width:110px;"><label>From</label><input type="date" id="filterFrom"></div>
+          <div class="field" style="flex:1;min-width:110px;"><label>To</label><input type="date" id="filterTo"></div>
+          <button class="btn btn-primary btn-sm" style="margin-bottom:1px;" onclick="renderLog()">Filter</button>
+        </div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden;"><div id="logTable"></div></div>
+    </div>
+
+    <!-- REPORTS — available to ALL roles -->
+    <div class="page" id="page-reports">
+      <div class="page-header">
+        <div><div class="page-title">Print Reports</div><div class="page-sub">QLD Health audit-ready PDF export</div></div>
+        <button class="btn btn-ghost" onclick="showPage('dashboard')">← Back</button>
+      </div>
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-title" style="margin-bottom:14px;">Report Parameters</div>
+        <div class="form-row three">
+          <div class="field"><label>Nurse</label><select id="rptClinic"></select></div>
+          <div class="field"><label>Period from</label><input type="date" id="rptFrom"></div>
+          <div class="field"><label>Period to</label><input type="date" id="rptTo"></div>
+        </div>
+      </div>
+      <div class="print-option"><div class="print-option-info"><h4>📋 Drug Register — Full Audit Report</h4><p>All stocktakes formatted for QLD Health inspection.</p></div><button class="btn btn-navy" onclick="exportPDF('register')">Download PDF</button></div>
+      <div class="print-option"><div class="print-option-info"><h4>📦 Stock Delivery Log</h4><p>All deliveries with batch numbers and expiry dates.</p></div><button class="btn btn-navy" onclick="exportPDF('delivery')">Download PDF</button></div>
+      <div class="print-option"><div class="print-option-info"><h4>⚠️ Variance &amp; Discrepancy Report</h4><p>All variances with written explanations.</p></div><button class="btn btn-navy" onclick="exportPDF('variance')">Download PDF</button></div>
+      <div class="print-option"><div class="print-option-info"><h4>✅ Compliance Check History</h4><p>Evidence of ongoing compliance monitoring.</p></div><button class="btn btn-navy" onclick="exportPDF('compliance')">Download PDF</button></div>
+      <div class="print-option"><div class="print-option-info"><h4>🗓️ Audit Meeting Minutes</h4><p>Monthly compliance meeting records.</p></div><button class="btn btn-navy" onclick="exportPDF('meetings')">Download PDF</button></div>
+      <div class="print-option"><div class="print-option-info"><h4>📊 Full Audit Package</h4><p>Everything in one PDF — submit to QLD Health.</p></div><button class="btn btn-primary" onclick="exportPDF('all')">Download Full PDF</button></div>
+    </div>
+
+    <!-- ACCOUNTS (admin) -->
+    <div class="page" id="page-users">
+      <div class="page-header">
+        <div><div class="page-title">Accounts</div><div class="page-sub">Manage admin and nurse accounts</div></div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost" onclick="showPage('dashboard')">← Back</button>
+          <button class="btn btn-ghost" onclick="openUserModal(null,'admin')">+ New admin</button>
+          <button class="btn btn-primary" onclick="openUserModal(null,'nurse')">+ New nurse</button>
+        </div>
+      </div>
+      <div class="alert-box info"><span>👥</span><div><strong>Admins</strong> see all clinics and records. <strong>Nurses</strong> see only their own clinic. Both can access Print Reports. Nurse name and AHPRA auto-populate on all forms.</div></div>
+      <div class="card" style="padding:0;overflow:hidden;"><div id="usersTable"></div></div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="page" id="page-settings">
+      <div class="page-header">
+        <div><div class="page-title">Settings</div><div class="page-sub">RDP details, clinics, and data management</div></div>
+        <button class="btn btn-ghost" onclick="showPage('dashboard')">← Back</button>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Responsible Drug Person (RDP)</div></div>
+        <div class="form-row">
+          <div class="field"><label>Full name</label><input type="text" id="rdpName"></div>
+          <div class="field"><label>AHPRA number</label><input type="text" id="rdpAhpra"></div>
+        </div>
+        <div class="form-row">
+          <div class="field"><label>Specialty</label><input type="text" id="rdpSpec"></div>
+          <div class="field"><label>Contact number</label><input type="text" id="rdpPhone" placeholder="+61 4XX XXX XXX"></div>
+        </div>
+        <div class="form-row">
+          <div class="field"><label>Change admin PIN</label><input type="password" id="rdpNewPin" placeholder="New PIN (leave blank to keep current)"></div>
+          <div></div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="saveSettings()">Save details</button>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title">Suppliers</div><button class="btn btn-primary btn-sm" onclick="openSupplierModal()">+ Add supplier</button></div>
+        <div id="suppliersTable"></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Data Management</div></div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">All records, accounts, and settings are saved to this browser. Export a backup regularly.</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn btn-ghost" onclick="exportJSON()">📥 Export full backup</button>
+          <button class="btn btn-ghost" onclick="document.getElementById('importFile').click()">📤 Restore from backup</button>
+          <input type="file" id="importFile" accept=".json" style="display:none;" onchange="importJSON(this)">
+          <button class="btn btn-red" onclick="if(confirm('Delete ALL records? Accounts kept.')) {localStorage.removeItem('rxaudit_records');renderDashboard();renderLog();showToast('Records cleared');}">🗑 Clear all records</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+
+<!-- SUPPLIER MODAL -->
+<div class="modal-overlay" id="supplierModal">
+  <div class="modal">
+    <div class="modal-title" id="supplierModalTitle">Add Supplier</div>
+    <input type="hidden" id="editSupplierId">
+    <div class="form-row">
+      <div class="field"><label>Company name</label><input type="text" id="suppName" placeholder="e.g. Allergan / AbbVie"></div>
+      <div class="field"><label>Products supplied</label><input type="text" id="suppProducts" placeholder="e.g. Botox 50U, 100U vials"></div>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>Contact name</label><input type="text" id="suppContact" placeholder="Sales / account rep name"></div>
+      <div class="field"><label>Phone</label><input type="tel" id="suppPhone" placeholder="+61 1800 XXX XXX"></div>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>Email</label><input type="email" id="suppEmail" placeholder="orders@supplier.com.au"></div>
+      <div class="field"><label>Licence / ABN (optional)</label><input type="text" id="suppLicence" placeholder="Wholesale drug licence no."></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeSupplierModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveSupplier()">Save supplier</button>
+    </div>
+  </div>
+</div>
+
+<!-- CLINIC VIEW MODAL (admin viewing clinic as nurse) -->
+<div class="modal-overlay" id="clinicViewModal" style="align-items:flex-start;padding-top:20px;">
+  <div class="modal" style="width:min(700px,96vw);max-height:92vh;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <div class="modal-title" style="margin-bottom:0;" id="clinicViewTitle">Clinic View</div>
+      <button class="btn btn-ghost btn-sm" onclick="closeClinicView()">✕ Close</button>
+    </div>
+    <div id="clinicViewContent"></div>
+  </div>
+</div>
+
+<!-- USER MODAL -->
+<div class="modal-overlay" id="userModal">
+  <div class="modal">
+    <div class="modal-title" id="userModalTitle">New account</div>
+    <input type="hidden" id="editUserId">
+    <input type="hidden" id="editUserRole">
+    <div id="adminFields" class="hidden">
+      <div class="form-row">
+        <div class="field"><label>Full name</label><input type="text" id="umName" placeholder="e.g. Dr Jane Smith"></div>
+        <div class="field"><label>Username</label><input type="text" id="umUsername" placeholder="e.g. drjane"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>AHPRA number</label><input type="text" id="umAhpra" placeholder="MED0001234567"></div>
+        <div class="field"><label>PIN (4–8 digits)</label><input type="text" id="umPin" placeholder="e.g. 9876" maxlength="8"></div>
+      </div>
+    </div>
+    <div id="nurseFields" class="hidden">
+      <div class="form-row">
+        <div class="field"><label>Full name</label><input type="text" id="unName" placeholder="e.g. Sarah Murphy"></div>
+        <div class="field"><label>Username</label><input type="text" id="unUsername" placeholder="e.g. smurphy"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>AHPRA number</label><input type="text" id="unAhpra" placeholder="NMW0001234567"></div>
+        <div class="field"><label>Clinic name</label><input type="text" id="unClinic" placeholder="e.g. Burleigh Beauty Med"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Email address</label><input type="email" id="unEmail" placeholder="nurse@clinic.com.au"></div>
+        <div class="field"><label>Emergency contact mobile</label><input type="tel" id="unEmergency" placeholder="+61 4XX XXX XXX"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>PIN (4–8 digits)</label><input type="text" id="unPin" placeholder="e.g. 4321" maxlength="8"></div>
+        <div></div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeUserModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveUser()">Save account</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="toastMsg">✓ Saved</span></div>
+
+<script>
+
+// ============================================================
+// STORAGE KEYS
+// ============================================================
+// ============================================================
+// FIREBASE CONFIG — replace these 6 values with your own
+// Firebase Console → Project Settings → Your apps → Web app
+// ============================================================
+var FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBnGlbnGfCmtC7kd1nrhzuwFDI-ODdwvig",
+  authDomain: "rx-audit.firebaseapp.com",
+  projectId: "rx-audit",
+  storageBucket: "rx-audit.firebasestorage.app",
+  messagingSenderId: "119568846259",
+  appId: "1:119568846259:web:1013f0acb81f04a0d5cfc6"
+};
+
+// ============================================================
+// FIREBASE INIT — loads SDK from CDN, no ES modules
+// ============================================================
+var _db = null;
+var _storage = null;
+var _fbReady = false;
+
+function _initFirebase(){
+  if(!window.firebase){
+    console.warn('Firebase SDK not loaded yet');
+    return;
+  }
+  if(!firebase.apps.length){
+    firebase.initializeApp(FIREBASE_CONFIG);
+  }
+  _db = firebase.firestore();
+  _storage = firebase.storage();
+  // Enable offline persistence so app works even with poor connection
+  _db.enablePersistence({synchronizeTabs:true}).catch(function(err){
+    if(err.code==='failed-precondition'){
+      // Multiple tabs open - ok, persistence only in one
+    } else if(err.code==='unimplemented'){
+      // Browser doesn't support it - ok, continue without
+    }
+  });
+  _fbReady = true;
+  console.log('Firebase ready');
+}
+
+// ============================================================
+// CACHE — app reads/writes this synchronously
+// Firebase syncs in background
+// ============================================================
+var _cache = {
+  records: null,
+  users: null,
+  settings: null,
+  pending: null,
+  suppliers: null,
+  sharedDocs: null,
+  nurseDocs: {},
+  readReceipts: null,
+  notifications: null,
+  drugLists: {}
+};
+
+// Load ALL data from Firebase into cache (called on login)
+function _loadCacheFromFirebase(onDone){
+  if(!_fbReady){ onDone(); return; }
+  var promises = [
+    _db.collection('data').doc('records').get().then(function(d){
+      if(d.exists) _cache.records = d.data().list || [];
+    }),
+    _db.collection('data').doc('users').get().then(function(d){
+      if(d.exists) _cache.users = d.data().list || [];
+    }),
+    _db.collection('data').doc('settings').get().then(function(d){
+      if(d.exists) _cache.settings = d.data().obj || null;
+    }),
+    _db.collection('data').doc('pending').get().then(function(d){
+      if(d.exists) _cache.pending = d.data().list || [];
+    }),
+    _db.collection('data').doc('suppliers').get().then(function(d){
+      if(d.exists) _cache.suppliers = d.data().list || [];
+    }),
+    _db.collection('data').doc('sharedDocs').get().then(function(d){
+      if(d.exists) _cache.sharedDocs = d.data().list || [];
+    }),
+    _db.collection('data').doc('readReceipts').get().then(function(d){
+      if(d.exists) _cache.readReceipts = d.data().obj || {};
+    }),
+    _db.collection('data').doc('notifications').get().then(function(d){
+      if(d.exists) _cache.notifications = d.data().obj || {};
+    })
+  ];
+  Promise.all(promises).then(function(){
+    // Load nurse docs
+    return _db.collection('nurseDocs').get();
+  }).then(function(snap){
+    snap.forEach(function(d){ _cache.nurseDocs[d.id] = d.data().list || []; });
+    // Load drug lists
+    return _db.collection('drugLists').get();
+  }).then(function(snap){
+    snap.forEach(function(d){ _cache.drugLists[d.id] = d.data().list || []; });
+    onDone();
+  }).catch(function(err){
+    console.error('Cache load error:', err);
+    onDone(); // Continue with local data if Firebase fails
+  });
+}
+
+// Push a cache key to Firebase in background (fire and forget)
+function _pushToFirebase(key, data){
+  if(!_fbReady) return;
+  var col, docId, payload;
+  if(key === 'nurseDocs'){
+    // data = {nurseId, list}
+    _db.collection('nurseDocs').doc(String(data.nurseId))
+      .set({list: data.list}).catch(function(e){ console.warn('FB push nurseDocs:', e); });
+    return;
+  }
+  if(key === 'drugLists'){
+    _db.collection('drugLists').doc(String(data.clinicKey))
+      .set({list: data.list}).catch(function(e){ console.warn('FB push drugLists:', e); });
+    return;
+  }
+  var payloads = {
+    records:      {list: data},
+    users:        {list: data},
+    settings:     {obj: data},
+    pending:      {list: data},
+    suppliers:    {list: data},
+    sharedDocs:   {list: data},
+    readReceipts: {obj: data},
+    notifications:{obj: data}
+  };
+  _db.collection('data').doc(key)
+    .set(payloads[key] || {value: data})
+    .catch(function(e){ console.warn('FB push '+key+':', e); });
+}
+
+// ============================================================
+// STORAGE FUNCTIONS — synchronous, read/write cache
+// ============================================================
+
+// ── USERS ──
+function getUsers(){
+  if(_cache.users !== null) return _cache.users;
+  try{ var u=JSON.parse(localStorage.getItem('rxaudit_users'));
+    if(u){ _cache.users=u; return u; } }catch(e){}
+  var def=[{id:1,name:'Dr Philip',username:'drphilip',pin:'1234',role:'rdp',ahpra:'',active:true}];
+  _cache.users=def; return def;
+}
+function saveUsers(users){
+  _cache.users=users;
+  localStorage.setItem('rxaudit_users',JSON.stringify(users));
+  _pushToFirebase('users', users);
+}
+function saveUser(user){
+  var users=getUsers();
+  var idx=users.findIndex(function(u){return u.id===user.id;});
+  if(idx>=0) users[idx]=user; else users.push(user);
+  saveUsers(users);
+}
+
+// ── SETTINGS ──
+
+function defaultSettings(){
+  return{rdpName:'Dr Philip',rdpAhpra:'',rdpSpec:'Consultant Anaesthetist',rdpPhone:'',
+    clinics:[]};
+}
+function getSettings(){
+  if(_cache.settings !== null){
+    var s=_cache.settings;
+    var old=['Gold Coast Aesthetics','Coastal Skin Clinic','Burleigh Beauty Med',
+      'Pacific Fair Aesthetics','Southport Skin Studio'];
+    if(s.clinics) s.clinics=s.clinics.filter(function(c){return old.indexOf(c)<0;});
+    return s;
+  }
+  try{ var s2=JSON.parse(localStorage.getItem('rxaudit_settings'));
+    if(s2){ _cache.settings=s2; return s2; } }catch(e){}
+  return defaultSettings();
+}
+function saveSettings(key, value){
+  var s=getSettings(); s[key]=value; _cache.settings=s;
+  localStorage.setItem('rxaudit_settings',JSON.stringify(s));
+  _pushToFirebase('settings', s);
+}
+function saveSettingsObj(s){
+  _cache.settings=s;
+  localStorage.setItem('rxaudit_settings',JSON.stringify(s));
+  _pushToFirebase('settings', s);
+}
+
+// ── RECORDS ──
+function getAllRecords(){
+  if(_cache.records !== null) return _cache.records;
+  try{ var r=JSON.parse(localStorage.getItem('rxaudit_records'));
+    if(r){ _cache.records=r; return r; } }catch(e){}
+  _cache.records=[]; return [];
+}
+function getRecords(){
+  var all=getAllRecords();
+  if(currentUser&&currentUser.role==='nurse') return all.filter(function(r){return r.clinic===currentUser.clinic;});
+  return all;
+}
+function saveRecord(rec){
+  var r=getAllRecords();
+  rec.id=Date.now(); r.unshift(rec);
+  _cache.records=r;
+  localStorage.setItem('rxaudit_records',JSON.stringify(r));
+  _pushToFirebase('records', r);
+}
+
+// ── PENDING ──
+function getPending(){
+  if(_cache.pending !== null) return _cache.pending;
+  try{ var p=JSON.parse(localStorage.getItem('rxaudit_pending'));
+    if(p){ _cache.pending=p; return p; } }catch(e){}
+  _cache.pending=[]; return [];
+}
+function getPendingForClinic(clinic){ return getPending().filter(function(p){return p.clinic===clinic;}); }
+function savePending(items){
+  _cache.pending=items;
+  localStorage.setItem('rxaudit_pending',JSON.stringify(items));
+  _pushToFirebase('pending', items);
+}
+function addPending(clinic, drug, qty, refId, date){
+  var items=getPending();
+  items.push({clinic:clinic,drug:drug,qty:parseFloat(qty)||0,ref:refId,date:date});
+  savePending(items);
+}
+function clearPendingForClinic(clinic){
+  savePending(getPending().filter(function(p){return p.clinic!==clinic;}));
+}
+
+// ── SUPPLIERS ──
+
+function defaultSuppliers(){
+  return[];
+}
+function getSuppliers(){
+  if(_cache.suppliers !== null){
+    var s=_cache.suppliers;
+    var defNames=['Allergan / AbbVie','Ipsen','Specialised Therapeutics','Sigma Healthcare','Merz Aesthetics'];
+    var hasReal=s.some(function(x){return defNames.indexOf(x.name)<0;});
+    if(!hasReal&&s.length>0) return [];
+    return s;
+  }
+  try{ var s2=JSON.parse(localStorage.getItem('rxaudit_suppliers'));
+    if(s2){ _cache.suppliers=s2; return s2; } }catch(e){}
+  return [];
+}
+function saveSuppliers(list){
+  _cache.suppliers=list;
+  localStorage.setItem('rxaudit_suppliers',JSON.stringify(list));
+  _pushToFirebase('suppliers', list);
+}
+function saveSupplier(supplier){
+  var list=getSuppliers();
+  var idx=list.findIndex(function(s){return s.id===supplier.id;});
+  if(idx>=0) list[idx]=supplier; else list.push(supplier);
+  saveSuppliers(list);
+}
+
+// ── SHARED DOCS ──
+function getSharedDocs(){
+  if(_cache.sharedDocs !== null) return _cache.sharedDocs;
+  try{ var d=JSON.parse(localStorage.getItem('rxaudit_shared_docs'));
+    if(d){ _cache.sharedDocs=d; return d; } }catch(e){}
+  _cache.sharedDocs=[]; return [];
+}
+function saveSharedDocs(docs){
+  _cache.sharedDocs=docs;
+  localStorage.setItem('rxaudit_shared_docs',JSON.stringify(docs));
+  _pushToFirebase('sharedDocs', docs);
+}
+
+// ── NURSE DOCS ──
+function getNurseDocs(nurseId){
+  var nid=String(nurseId);
+  if(_cache.nurseDocs[nid] !== undefined) return _cache.nurseDocs[nid];
+  try{ var all=JSON.parse(localStorage.getItem('rxaudit_nurse_docs'))||{};
+    _cache.nurseDocs[nid]=all[nid]||[]; return _cache.nurseDocs[nid]; }catch(e){}
+  return [];
+}
+function saveNurseDocs(nurseId, docs){
+  var nid=String(nurseId);
+  _cache.nurseDocs[nid]=docs;
+  var all={};
+  try{ all=JSON.parse(localStorage.getItem('rxaudit_nurse_docs'))||{}; }catch(e){}
+  all[nid]=docs;
+  localStorage.setItem('rxaudit_nurse_docs',JSON.stringify(all));
+  _pushToFirebase('nurseDocs', {nurseId:nid, list:docs});
+}
+
+// ── READ RECEIPTS ──
+function getReadReceipts(){
+  if(_cache.readReceipts !== null) return _cache.readReceipts;
+  try{ var r=JSON.parse(localStorage.getItem('rxaudit_docs_read'));
+    if(r){ _cache.readReceipts=r; return r; } }catch(e){}
+  _cache.readReceipts={}; return {};
+}
+function saveReadReceipts(receipts){
+  _cache.readReceipts=receipts;
+  localStorage.setItem('rxaudit_docs_read',JSON.stringify(receipts));
+  _pushToFirebase('readReceipts', receipts);
+}
+function hasReadDoc(docId){
+  var r=getReadReceipts(); return !!(r[docId]&&r[docId][String(currentUser.id)]);
+}
+function markDocRead(docId){
+  var receipts=getReadReceipts();
+  if(!receipts[docId]) receipts[docId]={};
+  receipts[docId][String(currentUser.id)]=new Date().toISOString();
+  saveReadReceipts(receipts);
+}
+function getDocReadBy(docId){
+  var r=getReadReceipts(); if(!r[docId]) return [];
+  var users=getUsers();
+  return Object.keys(r[docId]).map(function(uid){
+    var u=users.find(function(x){return String(x.id)===uid;});
+    return {name:u?u.name:uid, date:r[docId][uid].split('T')[0]};
+  });
+}
+
+// ── NOTIFICATIONS ──
+function _getNotifyData(){
+  if(_cache.notifications !== null) return _cache.notifications;
+  try{ var n=JSON.parse(localStorage.getItem('rxaudit_docs_notify'));
+    if(n){ _cache.notifications=n; return n; } }catch(e){}
+  _cache.notifications={}; return {};
+}
+function notifyNursesOfNewDoc(docName){
+  var nurses=getUsers().filter(function(u){return u.role==='nurse'&&u.active!==false;});
+  var existing=_getNotifyData();
+  nurses.forEach(function(u){
+    if(!existing[String(u.id)]) existing[String(u.id)]=[];
+    existing[String(u.id)].push({docName:docName,date:new Date().toISOString(),read:false});
+  });
+  _cache.notifications=existing;
+  localStorage.setItem('rxaudit_docs_notify',JSON.stringify(existing));
+  _pushToFirebase('notifications', existing);
+}
+function getUnreadNotifications(){
+  var docs=getSharedDocs(); var receipts=getReadReceipts();
+  return docs.filter(function(d){
+    var r=receipts[d.id]; return !r||!r[String(currentUser.id)];
+  });
+}
+
+// ── DRUG LISTS (per clinic) ──
+function getKnownDrugsForClinic_cache(clinicKey){
+  if(_cache.drugLists[clinicKey] !== undefined) return _cache.drugLists[clinicKey];
+  try{ var d=JSON.parse(localStorage.getItem('rxaudit_drugs_'+clinicKey));
+    if(d){ _cache.drugLists[clinicKey]=d; return d; } }catch(e){}
+  return null;
+}
+
+function getKnownDrugsForClinic(clinic){
+  if(!clinic) return [];
+  var clinicKey=clinic.replace(/[ ]+/g,'_').toLowerCase();
+  var cached=getKnownDrugsForClinic_cache(clinicKey)||[];
+  // Merge with DEFAULT_DRUGS
+  var all=(DEFAULT_DRUGS||[]).slice();
+  cached.forEach(function(d){if(all.indexOf(d)<0)all.push(d);});
+  // Merge with last stocktake
+  var lastRec=getLastStocktakeForClinic(clinic);
+  if(lastRec&&lastRec.drugs){
+    lastRec.drugs.forEach(function(d){if(d.drug&&all.indexOf(d.drug)<0)all.push(d.drug);});
+  }
+  return all;
+}
+
+function saveKnownDrugsForClinic(clinic, drugs){
+  if(!clinic) return;
+  var clinicKey=clinic.replace(/\s+/g,'_').toLowerCase();
+  _cache.drugLists[clinicKey]=drugs;
+  localStorage.setItem('rxaudit_drugs_'+clinicKey,JSON.stringify(drugs));
+  _pushToFirebase('drugLists',{clinicKey:clinicKey,list:drugs});
+}
+
+// ── VISIBLE CLINICS ──
+function visibleClinics(){
+  var s=getSettings();
+  if(currentUser&&currentUser.role==='nurse') return [currentUser.clinic];
+  var clinics=(s.clinics||[]).slice();
+  getUsers().forEach(function(u){
+    if(u.role==='nurse'&&u.clinic&&clinics.indexOf(u.clinic)<0) clinics.push(u.clinic);
+  });
+  return clinics;
+}
+
+
+
+
+function isAdmin(){ return currentUser&&(currentUser.role==='rdp'||currentUser.role==='admin'); }
+
+function timeSince(iso){
+  var diff=Math.floor((Date.now()-new Date(iso).getTime())/1000);
+  if(diff<60)return 'just now';
+  if(diff<3600)return Math.floor(diff/60)+'m ago';
+  if(diff<86400)return Math.floor(diff/3600)+'h ago';
+  return Math.floor(diff/86400)+'d ago';
+}
+
+function stepperHTML(cls, val, min){
+  min = (min===undefined)?0:min;
+  return '<div class="stepper">'
+    +'<button type="button" onclick="stepperChange(this,-1,'+min+')" tabindex="-1">\u2212</button>'
+    +'<span class="stepper-val">'+val+'</span>'
+    +'<button type="button" onclick="stepperChange(this,1,'+min+')" tabindex="-1">+</button>'
+    +'<input type="number" class="'+cls+'" value="'+val+'" min="'+min+'" style="display:none;" tabindex="-1">'
+    +'</div>';
+}
+
+function stepperChange(btn, delta, min){
+  var stepper=btn.closest('.stepper');
+  var input=stepper.querySelector('input[type=number]');
+  var display=stepper.querySelector('.stepper-val');
+  var current=parseFloat(input.value)||0;
+  var next=Math.max(min===undefined?0:min, current+delta);
+  input.value=next; display.textContent=next;
+  var row=stepper.closest('.drug-row');
+  if(row) calcVarianceFromRow(row);
+}
+
+function calcVarianceFromRow(row){
+  var open=parseFloat(row.querySelector('.open-bal').value)||0;
+  var admin=parseFloat(row.querySelector('.admin').value)||0;
+  var wasted=parseFloat(row.querySelector('.wasted').value)||0;
+  var count=parseFloat(row.querySelector('.count').value)||0;
+  var diff=count-(open-admin-wasted);
+  var span=row.querySelector('.variance');
+  if(!span)return;
+  if(diff===0){span.textContent='\u2713 0';span.className='variance ok';}
+  else{span.textContent=(diff>0?'+':'')+diff;span.className='variance warn';}
+}
+
+function deleteDrugRow(btn){
+  var row=btn.closest('.drug-row');
+  if(!row)return;
+  var drugName=row.getAttribute('data-drug');
+  if(!confirm('Remove "'+drugName+'" from this stocktake?\n\nRemoves it from future stocktakes for this nurse. Historical records are not affected.'))return;
+  row.remove();
+  var clinic=document.getElementById('stockClinic')?document.getElementById('stockClinic').value:'';
+  if(!clinic)return;
+  var clinicKey=clinic.replace(/\s+/g,'_').toLowerCase();
+  var drugs=getKnownDrugsForClinic_cache(clinicKey)||[];
+  drugs=drugs.filter(function(d){return d!==drugName;});
+  _cache.drugLists[clinicKey]=drugs;
+  localStorage.setItem('rxaudit_drugs_'+clinicKey,JSON.stringify(drugs));
+  _pushToFirebase('drugLists',{clinicKey:clinicKey,list:drugs});
+  showToast('Removed "'+drugName+'" from stocktake');
+}
+
+
+function renderSuppliers(){
+  const el=document.getElementById('suppliersTable');if(!el)return;
+  const supps=getSuppliers();
+  if(!supps.length){el.innerHTML='<div class="empty-state"><p>No suppliers yet.</p></div>';return;}
+  let rows=supps.map(function(s){
+    return '<tr><td style="font-weight:600;">'+s.name+'</td><td style="font-size:12px;color:var(--muted);">'+(s.products||'\u2014')+'</td><td style="font-size:12px;">'+(s.phone||'\u2014')+'</td><td style="font-size:12px;">'+(s.email||'\u2014')+'</td><td style="text-align:right;white-space:nowrap;"><button class="btn btn-ghost btn-sm" onclick="editSupplier('+s.id+')">Edit</button> <button class="btn btn-red btn-sm" onclick="deleteSupplier('+s.id+')">Delete</button></td></tr>';
+  }).join('');
+  el.innerHTML='<table class="table"><thead><tr><th>Company</th><th>Products</th><th>Phone</th><th>Email</th><th style="text-align:right;"></th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+
+function doLogin(){
+  var username=document.getElementById('loginUsername').value.trim().toLowerCase();
+  var pin=document.getElementById('loginPin').value;
+  var err=document.getElementById('loginError');
+  // Firebase is initialised and cache loaded on page load (see DOMContentLoaded below)
+  var users=getUsers();
+  var user=null;
+  for(var i=0;i<users.length;i++){
+    if(users[i].username.toLowerCase()===username&&users[i].pin===pin&&users[i].active!==false){
+      user=users[i];break;
+    }
+  }
+  if(!user){err.style.display='block';return;}
+  err.style.display='none';
+  currentUser=user;
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('appShell').classList.remove('hidden');
+  document.getElementById('userNameEl').textContent=user.name;
+  var roleLabel=user.role==='rdp'?'Responsible Drug Person':user.role==='admin'?'Administrator':user.clinic;
+  document.getElementById('userRoleEl').textContent=roleLabel;
+  var av=document.getElementById('userAvatar');
+  var initials=user.name.split(' ').map(function(w){return w[0];}).join('').slice(0,2).toUpperCase();
+  av.textContent=initials;
+  av.className='user-avatar '+(user.role==='rdp'?'avatar-rdp':user.role==='admin'?'avatar-admin':'avatar-nurse');
+  document.getElementById('adminNav').classList.toggle('hidden',!isAdmin());
+  document.getElementById('headerTitle').textContent=isAdmin()?'S4 Drug Compliance \u2014 QLD Health':user.clinic+' \u2014 S4 Compliance';
+  var mobileAdmin=document.getElementById('mobileAdminBtn');
+  if(mobileAdmin)mobileAdmin.classList.toggle('hidden',!isAdmin());
+  initApp();
+  showPage('dashboard');
+  _attachRealtimeListeners();
+}
+
+function doLogout(){
+  currentUser=null;
+  document.getElementById('loginScreen').style.display='flex';
+  document.getElementById('appShell').classList.add('hidden');
+  document.getElementById('loginPin').value='';
+  document.getElementById('loginUsername').value='';
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+function fillClinicSelect(id,includeAll){
+  var sel=document.getElementById(id);if(!sel)return;
+  var html='';
+  if(isAdmin()){
+    if(includeAll)html+='<option value="">All nurses</option>';
+    // Admin: show nurses with their clinic
+    var nurses=getUsers().filter(function(u){return u.role==='nurse'&&u.active!==false;});
+    html+=nurses.map(function(u){
+      return '<option value="'+u.clinic+'">'+u.name+' \u2014 '+u.clinic+'</option>';
+    }).join('');
+    // Also add unassigned clinics
+    var s=getSettings();var assigned=nurses.map(function(u){return u.clinic;});
+    s.clinics.forEach(function(c){
+      if(assigned.indexOf(c)<0)html+='<option value="'+c+'">(Unassigned) \u2014 '+c+'</option>';
+    });
+  } else {
+    // Nurse: just their own clinic, locked
+    html='<option value="'+currentUser.clinic+'">'+currentUser.name+' \u2014 '+currentUser.clinic+'</option>';
+    sel.disabled=true;sel.style.background='#f1f5f9';sel.style.color='var(--muted)';
+  }
+  sel.innerHTML=html;
+}
+function chk(id){return document.getElementById(id).checked;}
+function toggleCheck(el){
+  setTimeout(function(){el.classList.toggle('checked',el.querySelector('input[type="checkbox"]').checked);},10);
+}
+function showToast(msg){
+  var t=document.getElementById('toast');
+  document.getElementById('toastMsg').textContent=msg;
+  t.classList.add('show');
+  setTimeout(function(){t.classList.remove('show');},3500);
+}
+
+// ============================================================
+// INIT
+// ============================================================
+var DEFAULT_DRUGS=['Botox (onabotulinumtoxin A)','Dysport (abobotulinumtoxin A)','Hyaluronidase (Hyalase)','Lignocaine 2% (Xylocaine)'];
+
+function initApp(){
+  var now=new Date();
+  document.getElementById('todayDate').textContent=now.toLocaleDateString('en-AU',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  var dateStr=now.toISOString().split('T')[0];
+  var timeStr=now.toTimeString().slice(0,5);
+  ['stockDate','delivDate','meetingDate'].forEach(function(id){var el=document.getElementById(id);if(el)el.value=dateStr;});
+  ['stockTime','meetingTime'].forEach(function(id){var el=document.getElementById(id);if(el)el.value=timeStr;});
+  fillClinicSelect('stockClinic',false);
+  fillClinicSelect('complianceClinic',false);
+  fillClinicSelect('delivClinic',false);
+  fillClinicSelect('filterClinic',true);
+  fillClinicSelect('rptClinic',true);
+  fillClinicSelect('meetingClinic',false);
+  document.getElementById('stockNurse').value=currentUser.name;
+  document.getElementById('nurseFullName').value=currentUser.name;
+  document.getElementById('nurseAhpra').value=currentUser.ahpra||'';
+  document.getElementById('delivNurse').value=currentUser.name;
+  // Admin can edit declaration fields; nurses are locked to their own profile
+  var declarationReadonly=(currentUser.role==='nurse');
+  var fnEl=document.getElementById('nurseFullName');
+  var ahEl=document.getElementById('nurseAhpra');
+  var dnEl=document.getElementById('delivNurse');
+  if(fnEl){fnEl.readOnly=declarationReadonly;}
+  if(ahEl){ahEl.readOnly=declarationReadonly;}
+  if(dnEl){dnEl.readOnly=declarationReadonly;}
+  document.getElementById('meetingSubmittedBy').value=currentUser.name;
+  document.getElementById('meetingSubmittedAhpra').value=currentUser.ahpra||'';
+  // Pre-populate sign-off fields (called from initApp AND refreshed by showPage)
+  refreshMeetingSignoff();
+  document.getElementById('meetingPeriod').value=now.toLocaleDateString('en-AU',{month:'long',year:'numeric'});
+  var s=getSettings();
+  document.getElementById('rdpName').value=s.rdpName;
+  document.getElementById('rdpAhpra').value=s.rdpAhpra;
+  document.getElementById('rdpSpec').value=s.rdpSpec;
+  document.getElementById('rdpPhone').value=s.rdpPhone;
+  document.getElementById('deliveryItems').innerHTML='';
+  addDeliveryRow();
+  loadLastStocktake();
+  buildMeetingAttendees();
+  buildMeetingAgenda();
+  buildMeetingActions();
+  fillSupplierSelect();
+  renderDashboard();
+  renderLog();
+  if(isAdmin()){renderUsers();renderClinics();renderSuppliers();}
+}
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+function showPage(id){
+  if(['users','settings'].includes(id)&&!isAdmin()){showToast('Admin access only');return;}
+  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
+  document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
+  document.getElementById('page-'+id).classList.add('active');
+  document.querySelectorAll('.nav-item[data-page="'+id+'"]').forEach(function(n){n.classList.add('active');});
+  if(id==='log')renderLog();
+  if(id==='dashboard')renderDashboard();
+  if(id==='users')renderUsers();
+  if(id==='settings'){renderClinics();renderSuppliers();}
+  if(id==='stocktake')loadLastStocktake();
+  if(id==='delivery'){refreshDeliveryDrugDropdowns();fillSupplierSelect();}
+  if(id==='meeting'){buildMeetingAttendees();buildMeetingAgenda();buildMeetingActions();refreshMeetingSignoff();checkMonthlyReminder();}
+  if(id==='documents')renderDocumentsPage();
+  window.scrollTo(0,0);
+}
+
+// ============================================================
+// MONTHLY REMINDER
+// ============================================================
+function checkMonthlyReminder(){
+  var now=new Date();
+  var thisMonth=now.toISOString().slice(0,7);
+  var dayOfMonth=now.getDate();
+  var banner=document.getElementById('monthlyReminderBanner');
+  if(!banner)return;
+  var isNurse=(currentUser.role==='nurse');
+  var clinic=isNurse?currentUser.clinic:null;
+  var records=getRecords();
+  var items=[];
+
+  if(isNurse){
+    // Nurses: weekly compliance check
+    var thisWeekKey=getWeekKey(now);
+    var weeklyDone=records.some(function(r){
+      return r.type==='Compliance'&&r.date&&getWeekKey(new Date(r.date))===thisWeekKey&&r.clinic===clinic;
+    });
+    if(!weeklyDone){
+      items.push({label:'Weekly compliance check',action:"showPage('checklist')"});
+    }
+    // Nurses: monthly meeting — only remind on 1st of month
+    if(dayOfMonth===1){
+      var meetingDone=records.some(function(r){
+        return r.type==='Meeting'&&r.date&&r.date.startsWith(thisMonth)&&r.clinic===clinic;
+      });
+      if(!meetingDone){
+        items.push({label:'Monthly audit meeting',action:"showPage('meeting')"});
+      }
+    }
+  } else {
+    // Admin: monthly compliance + meeting
+    var monthlyDone=records.some(function(r){return r.type==='Compliance'&&r.subtype==='Monthly audit'&&r.date&&r.date.startsWith(thisMonth);});
+    var aMeetingDone=records.some(function(r){return r.type==='Meeting'&&r.date&&r.date.startsWith(thisMonth);});
+    if(!monthlyDone)items.push({label:'Monthly compliance check',action:"document.getElementById('complianceType').value='Monthly audit';showPage('checklist')"});
+    if(!aMeetingDone)items.push({label:'Audit meeting minutes',action:"showPage('meeting')"});
+  }
+
+  if(!items.length){banner.innerHTML='';return;}
+  var period=isNurse?'this week':now.toLocaleDateString('en-AU',{month:'long',year:'numeric'});
+  var btns=items.map(function(item){
+    return '<button class="btn btn-sm" style="background:var(--purple);color:white;border:none;margin:2px;" onclick="'+item.action+'">'+item.label+'</button>';
+  }).join('');
+  banner.innerHTML='<div class="monthly-reminder"><div class="monthly-reminder-text"><h4>Tasks due '+period+'</h4><p>Not yet completed:</p></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">'+btns+'</div></div>';
+}
+
+function getWeekKey(d){
+  var dt=new Date(d);
+  dt.setHours(0,0,0,0);
+  var day=dt.getDay();
+  var diff=dt.getDate()-day+(day===0?-6:1);
+  dt.setDate(diff);
+  return dt.toISOString().split('T')[0];
+}
+
+// ============================================================
+// DASHBOARD
+// ============================================================
+function renderDashboard(){
+  if(!document.getElementById('clinicStatusGrid'))return;
+  var records=getRecords();
+  var today=new Date().toISOString().split('T')[0];
+  var todayRec=records.filter(function(r){return r.date===today;});
+  var todayST=todayRec.filter(function(r){return r.type==='Stocktake';});
+  var completedClinics=[...new Set(todayST.map(function(r){return r.clinic;}))];
+  var variances=records.filter(function(r){return r.hasVariance;});
+
+  // Build nurse list for display
+  var nurseList;
+  if(isAdmin()){
+    nurseList=getUsers().filter(function(u){return u.role==='nurse'&&u.active!==false;});
+    // Also include clinics from settings that have no nurse assigned
+    var assignedClinics=nurseList.map(function(u){return u.clinic;});
+    var s=getSettings();
+    s.clinics.forEach(function(c){
+      if(assignedClinics.indexOf(c)<0){
+        nurseList.push({name:'Unassigned',clinic:c,id:'unassigned_'+c,role:'nurse',ahpra:''});
+      }
+    });
+  } else {
+    nurseList=[currentUser];
+  }
+
+  var pending=nurseList.filter(function(u){return completedClinics.indexOf(u.clinic)<0;});
+  document.getElementById('statPending').textContent=pending.length;
+  document.getElementById('statPendingSub').textContent=currentUser.role==='nurse'?'your clinic':'nurses';
+  document.getElementById('statCompleted').textContent=todayST.length;
+  document.getElementById('statTotal').textContent=records.length;
+  document.getElementById('statVariances').textContent=variances.length;
+  var badge=document.getElementById('pendingBadge');
+  badge.classList.toggle('hidden',pending.length===0);
+  badge.textContent=pending.length+' Pending';
+  document.getElementById('dashTitle').textContent=currentUser.role==='nurse'?currentUser.name+' \u2014 '+currentUser.clinic:'Daily Overview \u2014 All Nurses';
+  document.getElementById('clinicGridTitle').textContent=currentUser.role==='nurse'?'Your Status Today':'Nurse Status \u2014 Today';
+
+  var grid=document.getElementById('clinicStatusGrid');
+  grid.innerHTML=nurseList.map(function(nurse){
+    var clinic=nurse.clinic;
+    var done=completedClinics.indexOf(clinic)>=0;
+    var lastEntry=todayRec.find(function(r){return r.clinic===clinic;});
+    var hasVar=todayRec.some(function(r){return r.clinic===clinic&&r.hasVariance;});
+    var hasPend=getPendingForClinic(clinic).length>0;
+    var extra='';
+    if(hasVar)extra='<div style="color:var(--red);font-size:11px;font-weight:600;margin-top:4px;">\u26a0 Variance</div>';
+    else if(done&&lastEntry)extra='<div style="color:var(--muted);font-size:11px;margin-top:4px;">'+lastEntry.time+'</div>';
+    else if(hasPend)extra='<div style="color:#b7791f;font-size:11px;margin-top:4px;">\ud83d\udce6 Delivery pending</div>';
+    var clickFn=isAdmin()?"openClinicView('"+clinic.replace(/'/g,"\\'")+"')":'showPage(\'stocktake\')';
+    return '<div class="clinic-card '+(done?'done':'pending')+'" onclick="'+clickFn+'" style="cursor:pointer;">'
+      +'<div style="font-weight:700;font-size:13px;color:var(--navy);margin-bottom:2px;">'+nurse.name+'</div>'
+      +'<div style="font-size:11px;color:var(--teal);margin-bottom:4px;">\ud83c\udfe5 '+clinic+'</div>'
+      +'<div class="clinic-status"><span class="dot '+(done?'green':'amber')+'"></span>'
+      +'<span style="color:'+(done?'var(--green)':'#b7791f')+';font-size:11px;font-weight:600;">'+(done?'Complete':'Pending')+'</span>'
+      +'</div>'+extra+'</div>';
+  }).join('');
+
+  var recent=records.slice(0,6);
+  var actDiv=document.getElementById('recentActivityTable');
+  if(!recent.length){actDiv.innerHTML='<div class="empty-state"><div class="empty-icon">\ud83d\udccb</div><p>No records yet.</p></div>';return;}
+  var rows=recent.map(function(r){
+    var tc=r.type==='Stocktake'?'blue':r.type==='Delivery'?'green':r.type==='Meeting'?'purple':'amber';
+    return '<tr><td style="font-family:monospace;font-size:11px;">'+r.date+' '+r.time+'</td><td>'+r.clinic+'</td>'
+      +'<td><span class="pill '+tc+'">'+r.type+'</span></td><td>'+(r.by||'\u2014')+'</td>'
+      +'<td>'+(r.hasVariance?'<span class="pill red">\u26a0 Variance</span>':'<span class="pill green">\u2713 OK</span>')+'</td></tr>';
+  }).join('');
+  actDiv.innerHTML='<table class="table"><thead><tr><th>Date/Time</th><th>Clinic</th><th>Type</th><th>By</th><th>Status</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  checkMonthlyReminder();
+  checkDocumentNotifications();
+}
+
+
+// ============================================================
+// CLINIC VIEW (admin)
+// ============================================================
+var clinicViewClinic=null;
+function openClinicView(clinicName){
+  clinicViewClinic=clinicName;
+  document.getElementById('clinicViewTitle').textContent=clinicName;
+  renderClinicViewContent(clinicName);
+  document.getElementById('clinicViewModal').classList.add('open');
+}
+function closeClinicView(){
+  document.getElementById('clinicViewModal').classList.remove('open');
+  clinicViewClinic=null;
+}
+function renderClinicViewContent(clinic){
+  var el=document.getElementById('clinicViewContent');
+  var allRec=getAllRecords().filter(function(r){return r.clinic===clinic;});
+  var today=new Date().toISOString().split('T')[0];
+  var thisMonth=new Date().toISOString().slice(0,7);
+  var nurses=getUsers().filter(function(u){return u.role==='nurse'&&u.clinic===clinic;});
+  var lastST=allRec.find(function(r){return r.type==='Stocktake';});
+  var pending=getPendingForClinic(clinic);
+  var todayST=allRec.filter(function(r){return r.type==='Stocktake'&&r.date===today;});
+  var monthMeeting=allRec.find(function(r){return r.type==='Meeting'&&r.date&&r.date.startsWith(thisMonth);});
+  var monthComp=allRec.find(function(r){return r.type==='Compliance'&&r.subtype==='Monthly audit'&&r.date&&r.date.startsWith(thisMonth);});
+  var variances=allRec.filter(function(r){return r.hasVariance;});
+
+  var nurseHtml=nurses.length?nurses.map(function(n){
+    return '<div style="background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px;">'
+      +'<div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:8px;">'
+      +'<div><div style="font-weight:600;font-size:14px;">'+n.name+'</div>'
+      +'<div style="font-size:12px;color:var(--muted);">AHPRA: '+(n.ahpra||'<span style=color:var(--red)>Not set</span>')
+      +' &nbsp;|&nbsp; '+(n.email||'no email')+' &nbsp;|&nbsp; '+(n.emergency||'no emergency contact')+'</div></div>'
+      +'<div style="display:flex;gap:6px;flex-wrap:wrap;">'
+      +'<button class="btn btn-ghost btn-sm" onclick="editUser('+n.id+');closeClinicView()">Edit</button>'
+      +'<button class="btn btn-ghost btn-sm" onclick="resetPin('+n.id+')">Reset PIN</button>'
+      +'<button class="btn '+(n.active!==false?'btn-red':'btn-ghost')+' btn-sm" onclick="toggleUserActive('+n.id+');renderClinicViewContent(\''+clinic.replace(/'/g,"\\'")+'\')">'+(n.active!==false?'Disable':'Enable')+'</button>'
+      +'</div></div></div>';
+  }).join(''):'<p style="color:var(--muted);font-size:13px;">No nurse accounts assigned. <button class="btn btn-primary btn-sm" onclick="openUserModal(null,\'nurse\');closeClinicView()">+ Add nurse</button></p>';
+
+  var balanceHtml='<p style="color:var(--muted);font-size:13px;">No stocktake recorded yet.</p>';
+  if(lastST&&lastST.drugs){
+    var brows=lastST.drugs.map(function(d){
+      var pend=pending.filter(function(p){return p.drug===d.drug;}).reduce(function(sum,p){return sum+p.qty;},0);
+      return '<tr><td>'+d.drug+'</td><td style="font-family:monospace;">'+d.count+'</td><td style="font-size:11px;color:var(--muted);">'+lastST.date+'</td><td>'+(pend>0?'<span class="pill amber">+'+pend+' pending</span>':'\u2014')+'</td></tr>';
+    }).join('');
+    balanceHtml='<table class="table" style="margin-top:8px;"><thead><tr><th>Drug</th><th>Last count</th><th>Date</th><th>Pending delivery</th></tr></thead><tbody>'+brows+'</tbody></table>';
+  }
+
+  var statsHtml='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;">'
+    +'<div class="stat-card ok"><div class="stat-label">Today</div><div class="stat-value" style="font-size:22px;">'+todayST.length+'</div><div class="stat-sub">stocktakes</div></div>'
+    +'<div class="stat-card '+(monthMeeting?'ok':'warn')+'"><div class="stat-label">Meeting</div><div class="stat-value" style="font-size:22px;">'+(monthMeeting?'\u2713':'\u2014')+'</div><div class="stat-sub">this month</div></div>'
+    +'<div class="stat-card '+(monthComp?'ok':'warn')+'"><div class="stat-label">Monthly check</div><div class="stat-value" style="font-size:22px;">'+(monthComp?'\u2713':'\u2014')+'</div><div class="stat-sub">this month</div></div>'
+    +'<div class="stat-card '+(variances.length?'alert':'ok')+'"><div class="stat-label">Variances</div><div class="stat-value" style="font-size:22px;">'+variances.length+'</div><div class="stat-sub">total</div></div>'
+    +'</div>';
+
+  var recent=allRec.slice(0,8);
+  var recentHtml=recent.length?'<table class="table"><thead><tr><th>Date</th><th>Type</th><th>By</th><th>Status</th></tr></thead><tbody>'
+    +recent.map(function(r){
+      var tc=r.type==='Stocktake'?'blue':r.type==='Delivery'?'green':r.type==='Meeting'?'purple':'amber';
+      return '<tr><td style="font-size:11px;font-family:monospace;">'+r.date+'</td>'
+        +'<td><span class="pill '+tc+'">'+r.type+'</span></td>'
+        +'<td style="font-size:12px;">'+(r.by||'\u2014')+'</td>'
+        +'<td>'+(r.hasVariance?'<span class="pill red">\u26a0 Variance</span>':'<span class="pill green">\u2713 OK</span>')+'</td></tr>';
+    }).join('')+'</tbody></table>'
+    :'<p style="color:var(--muted);font-size:13px;">No records yet.</p>';
+
+  el.innerHTML='<div style="margin-bottom:16px;">'+statsHtml+'</div>'
+    +'<div style="margin-bottom:16px;"><div class="card-title" style="margin-bottom:10px;">Nurse Profiles</div>'+nurseHtml+'</div>'
+    +'<div style="margin-bottom:16px;"><div class="card-title" style="margin-bottom:10px;">Drug Balances</div>'+balanceHtml+'</div>'
+    +'<div><div class="card-title" style="margin-bottom:10px;">Recent Activity</div>'+recentHtml+'</div>';
+}
+
+// ============================================================
+// STOCKTAKE
+// ============================================================
+function getLastStocktakeForClinic(clinic){
+  return getAllRecords().find(function(r){return r.type==='Stocktake'&&r.clinic===clinic;})||null;
+}
+function loadLastStocktake(){
+  var clinic=document.getElementById('stockClinic')?document.getElementById('stockClinic').value:'';
+  if(!clinic)return;
+  var last=getLastStocktakeForClinic(clinic);
+  var pending=getPendingForClinic(clinic);
+  var lastBalances={};var lastDrugs=[];
+  if(last&&last.drugs){last.drugs.forEach(function(d){lastBalances[d.drug]=d.count;if(lastDrugs.indexOf(d.drug)<0)lastDrugs.push(d.drug);});}
+  var delivNotes=[];
+  pending.forEach(function(pd){
+    lastBalances[pd.drug]=(lastBalances[pd.drug]||0)+pd.qty;
+    if(lastDrugs.indexOf(pd.drug)<0)lastDrugs.push(pd.drug);
+    delivNotes.push(pd.drug+': +'+pd.qty+' units from delivery on '+pd.date);
+  });
+  var allDrugs=[...new Set([...DEFAULT_DRUGS,...lastDrugs])];
+  var container=document.getElementById('drugRows');
+  container.innerHTML=allDrugs.map(function(name){return drugRowHTML(name,lastBalances[name]||0);}).join('');
+  var banner=document.getElementById('lastStocktakeBanner');
+  var adjNote=document.getElementById('deliveryAdjustmentNote');
+  if(last){
+    banner.classList.remove('hidden');
+    document.getElementById('lastStocktakeBannerText').innerHTML='Pre-filled from last stocktake at <strong>'+last.clinic+'</strong> on <strong>'+last.date+' '+last.time+'</strong> by '+last.by+'.';
+  }else{banner.classList.add('hidden');}
+  if(delivNotes.length){
+    adjNote.classList.remove('hidden');
+    document.getElementById('deliveryAdjustmentText').innerHTML='<strong>Delivery adjustments added:</strong><br>'+delivNotes.join('<br>');
+    var vn=document.getElementById('varianceNote');
+    if(!vn.value.trim())vn.value='Opening balances include unprocessed deliveries:\n'+delivNotes.join('\n');
+  }else{adjNote.classList.add('hidden');}
+}
+function drugRowHTML(name, openingVal){
+  var v=parseFloat(openingVal)||0;
+  return '<div class="drug-row" data-drug="'+name+'">'
+    +'<div class="drug-name">'+name+'</div>'
+    +'<div><span class="drug-field-label">Opening Bal.</span>'+stepperHTML('open-bal',v,0)+'</div>'
+    +'<div><span class="drug-field-label">Administered</span>'+stepperHTML('admin',0,0)+'</div>'
+    +'<div><span class="drug-field-label">Wasted</span>'+stepperHTML('wasted',0,0)+'</div>'
+    +'<div><span class="drug-field-label">Physical Count</span>'+stepperHTML('count',v,0)+'</div>'
+    +'<span class="variance ok">\u2713 0</span>'
+    +'<button type="button" onclick="deleteDrugRow(this)" class="drug-row-delete"'
+    +' style="display:none;background:none;border:none;color:var(--red);font-size:18px;cursor:pointer;padding:2px 4px;line-height:1;justify-self:center;"'
+    +' title="Remove drug">\uD83D\uDDD1</button>'
+    +'</div>';
+}
+
+function calcVariance(input){
+  var row=input.closest('.drug-row');
+  var open=parseFloat(row.querySelector('.open-bal').value)||0;
+  var admin=parseFloat(row.querySelector('.admin').value)||0;
+  var wasted=parseFloat(row.querySelector('.wasted').value)||0;
+  var count=parseFloat(row.querySelector('.count').value)||0;
+  var diff=count-(open-admin-wasted);
+  var span=row.querySelector('.variance');
+  if(diff===0){span.textContent='\u2713 0';span.className='variance ok';}
+  else{span.textContent=(diff>0?'+':'')+diff;span.className='variance warn';}
+}
+function addCustomDrug(){
+  var name=document.getElementById('customDrugName').value.trim();
+  if(!name){showToast('Enter a drug name first');return;}
+  var existing=[...document.querySelectorAll('#drugRows .drug-row')].map(function(r){return r.getAttribute('data-drug');});
+  if(existing.indexOf(name)>=0){showToast('That drug is already listed');return;}
+  document.getElementById('drugRows').insertAdjacentHTML('beforeend',drugRowHTML(name,0));
+  document.getElementById('customDrugName').value='';
+}
+function submitStocktake(){
+  var ahpra=document.getElementById('nurseAhpra').value;
+  if(!ahpra){showToast('AHPRA number missing — ask admin to update your profile');return;}
+  // Mandatory checkbox check
+  var unchk=[];
+  ['chk1','chk2','chk3','chk4'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el&&!el.checked){
+      var lbl=el.closest('.check-item');
+      unchk.push(lbl?lbl.querySelector('.check-label').textContent.trim().slice(0,40):'Item');
+    }
+  });
+  if(unchk.length){
+    showToast('⚠ Please tick all mandatory checks: '+unchk.join(', '));
+    ['chk1','chk2','chk3','chk4'].forEach(function(id){
+      var el=document.getElementById(id);
+      if(el&&!el.checked){var item=el.closest('.check-item');
+        if(item){item.style.background='rgba(229,62,62,0.08)';item.style.borderColor='#e53e3e';
+          setTimeout(function(){item.style.background='';item.style.borderColor='';},3000);}}
+    });
+    return;
+  }
+  var varianceNote=document.getElementById('varianceNote').value;
+  var drugs=[];var hasVariance=false;
+  document.querySelectorAll('#drugRows .drug-row').forEach(function(row){
+    var open=parseFloat(row.querySelector('.open-bal').value)||0;
+    var admin=parseFloat(row.querySelector('.admin').value)||0;
+    var wasted=parseFloat(row.querySelector('.wasted').value)||0;
+    var count=parseFloat(row.querySelector('.count').value)||0;
+    var diff=count-(open-admin-wasted);
+    if(diff!==0)hasVariance=true;
+    drugs.push({drug:row.getAttribute('data-drug'),opening:open,administered:admin,wasted:wasted,count:count,variance:diff});
+  });
+  if(hasVariance&&!varianceNote.trim()){showToast('A written variance explanation is mandatory (MPA s.60)');return;}
+  var clinic=document.getElementById('stockClinic').value;
+  // Save drug names to known list so they appear in future stocktakes and deliveries
+  var knownDrugs=getKnownDrugsForClinic(clinic);
+  var changed=false;
+  drugs.forEach(function(d){if(knownDrugs.indexOf(d.drug)<0){knownDrugs.push(d.drug);changed=true;}});
+  if(changed) saveKnownDrugsForClinic(clinic,knownDrugs);
+  var now=new Date();
+  saveRecord({type:'Stocktake',subtype:document.getElementById('stockType').value,clinic:clinic,by:currentUser.name,ahpra:ahpra,date:now.toISOString().split('T')[0],time:now.toTimeString().slice(0,5),drugs:drugs,hasVariance:hasVariance,varianceNote:varianceNote,checks:{locked:chk('chk1'),temp:chk('chk2'),register:chk('chk3'),expiry:chk('chk4')}});
+  clearPendingForClinic(clinic);
+  document.getElementById('varianceNote').value='';
+  ['chk1','chk2','chk3','chk4'].forEach(function(id){var el=document.getElementById(id);el.checked=false;el.closest('.check-item').classList.remove('checked');});
+  showToast('\u2713 Stocktake saved');
+  setTimeout(function(){showPage('dashboard');},1000);
+}
+
+// ============================================================
+// COMPLIANCE
+// ============================================================
+function submitCompliance(){
+  var checks=[...document.querySelectorAll('.comp-chk')];
+  var passed=checks.filter(function(cb){return cb.checked;}).length;
+  var now=new Date();
+  saveRecord({type:'Compliance',subtype:document.getElementById('complianceType').value,clinic:document.getElementById('complianceClinic').value,by:currentUser.name,date:now.toISOString().split('T')[0],time:now.toTimeString().slice(0,5),checksPassed:passed,checksTotal:checks.length,hasVariance:false});
+  checks.forEach(function(cb){cb.checked=false;cb.closest('.check-item').classList.remove('checked');});
+  showToast('\u2713 Compliance check saved ('+passed+'/'+checks.length+')');
+  setTimeout(function(){showPage('dashboard');},1000);
+}
+
+// ============================================================
+// DELIVERY
+// ============================================================
+var attachedFile=null;
+function getDeliveryDrugOptions(clinic){
+  var cl=clinic||(document.getElementById('delivClinic')?document.getElementById('delivClinic').value:'')||'';
+  // Start with default drugs
+  var drugs=(DEFAULT_DRUGS||[]).slice();
+  // Add known drugs saved for this clinic
+  var known=getKnownDrugsForClinic(cl);
+  known.forEach(function(d){if(drugs.indexOf(d)<0)drugs.push(d);});
+  // Add drugs from last stocktake record
+  var lastRec=getLastStocktakeForClinic(cl);
+  if(lastRec&&lastRec.drugs){
+    lastRec.drugs.forEach(function(d){if(drugs.indexOf(d.drug)<0)drugs.push(d.drug);});
+  }
+  if(!drugs.length) return '';
+  return drugs.map(function(d){return'<option value="'+d+'">'+d+'</option>';}).join('');
+}
+function refreshDeliveryDrugDropdowns(){
+  document.querySelectorAll('#deliveryItems .delivery-drug-row select.drug-sel').forEach(function(sel){
+    var val=sel.value;
+    var clinic=document.getElementById('delivClinic').value;
+    sel.innerHTML='<option value="">-- select drug --</option>'+getDeliveryDrugOptions(clinic)+'<option value="__new__">+ Type new drug name...</option>';
+    if(val)sel.value=val;
+  });
+}
+function addDeliveryRow(){
+  var container=document.getElementById('deliveryItems');
+  if(!container)return;
+  var clinic=document.getElementById('delivClinic')?document.getElementById('delivClinic').value:'';
+  var drugOpts='<option value="">-- select drug --</option>'+getDeliveryDrugOptions(clinic)+'<option value="__new__">+ Type new drug name...</option>';
+  var row=document.createElement('div');
+  row.className='delivery-drug-row';
+  row.innerHTML='<div style="display:flex;flex-direction:column;gap:4px;">'
+    +'<select class="drug-sel" onchange="handleDrugSelect(this)">'+drugOpts+'</select>'
+    +'<input type="text" class="drug-custom hidden" placeholder="Type new drug name and strength...">'
+    +'</div>'
+    +'<input type="number" min="1" placeholder="Qty" class="drug-qty">'
+    +'<input type="text" placeholder="Batch No." style="font-family:monospace;" class="drug-batch">'
+    +'<input type="date" class="drug-expiry">'
+    +'<input type="text" placeholder="Notes" class="drug-notes">'
+    +'<button class="del-row-btn" onclick="this.closest(\'.delivery-drug-row\').remove()" title="Remove">\u2715</button>';
+  container.appendChild(row);
+}
+function handleDrugSelect(sel){
+  var ci=sel.closest('.delivery-drug-row').querySelector('.drug-custom');
+  if(sel.value==='__new__'){ci.classList.remove('hidden');ci.focus();}
+  else{ci.classList.add('hidden');ci.value='';}
+}
+function handleFileUpload(input){
+  if(input.files&&input.files[0]){
+    var file=input.files[0];
+    var reader=new FileReader();
+    reader.onload=function(e){attachedFile={name:file.name,size:file.size,data:file.size<2097152?e.target.result:null};};
+    reader.readAsDataURL(file);
+    document.getElementById('uploadZone').classList.add('has-file');
+    document.getElementById('uploadedFiles').style.display='block';
+    document.getElementById('fileNameEl').textContent=file.name;
+    document.getElementById('fileSizeEl').textContent=(file.size/1024).toFixed(0)+' KB';
+    document.getElementById('uploadIcon').textContent='\u2705';
+  }
+}
+function removeFile(){
+  attachedFile=null;
+  document.getElementById('uploadZone').classList.remove('has-file');
+  document.getElementById('uploadedFiles').style.display='none';
+  document.getElementById('fileInput').value='';
+  document.getElementById('uploadIcon').textContent='\ud83d\udcf7';
+}
+function submitDelivery(){
+  var clinic=document.getElementById('delivClinic').value;
+  var items=[];
+  document.querySelectorAll('#deliveryItems .delivery-drug-row').forEach(function(row){
+    var sel=row.querySelector('.drug-sel');
+    var ci=row.querySelector('.drug-custom');
+    var drug=sel.value==='__new__'?ci.value.trim():sel.value;
+    var qty=row.querySelector('.drug-qty').value;
+    if(drug&&drug!=='__new__'&&qty)items.push({drug:drug,qty:qty,batch:row.querySelector('.drug-batch').value,expiry:row.querySelector('.drug-expiry').value,notes:row.querySelector('.drug-notes').value});
+  });
+  if(!items.length){showToast('Add at least one drug with a name and quantity');return;}
+  var now=new Date();var dateStr=now.toISOString().split('T')[0];
+  saveRecord({type:'Delivery',clinic:clinic,supplier:document.getElementById('delivSupplier').value,invoice:document.getElementById('delivInvoice').value,by:currentUser.name,date:dateStr,time:now.toTimeString().slice(0,5),items:items,attachment:attachedFile?{name:attachedFile.name,size:attachedFile.size}:null,hasVariance:false});
+  // Save drug names to known list for this clinic
+  var knownDrugs=getKnownDrugsForClinic(clinic);
+  items.forEach(function(item){
+    addPending(clinic,item.drug,item.qty,'del_'+Date.now(),dateStr);
+    if(item.drug&&knownDrugs.indexOf(item.drug)<0) knownDrugs.push(item.drug);
+  });
+  saveKnownDrugsForClinic(clinic,knownDrugs);
+  removeFile();
+  document.getElementById('delivInvoice').value='';
+  document.getElementById('deliveryItems').innerHTML='';
+  addDeliveryRow();
+  loadLastStocktake();
+  showToast('\u2713 Delivery recorded \u2014 balances updated for next stocktake');
+  setTimeout(function(){showPage('dashboard');},1000);
+}
+
+// ============================================================
+// AUDIT MEETING
+// ============================================================
+var AGENDA_ITEMS=[
+  {num:1,field:'ag_register',title:'Review of Drug Register',
+   options:[
+     'Drug register reviewed — all entries legible and sequentially numbered',
+     'Running balances reconcile with daily stocktake counts',
+     'No unauthorised entries or alterations identified',
+     'Register is complete and up to date with no missing entries',
+     'Entries are signed by the administering nurse as required',
+     'Register retained on-site and available for inspection'
+   ]},
+  {num:2,field:'ag_variances',title:'Stocktake Compliance',
+   options:[
+     'All daily stocktakes completed as required for the period',
+     'No variances or discrepancies recorded for the period',
+     'Physical counts reconcile with expected balances for all drugs',
+     'Stocktake completion rate 100% for the period',
+     'All stocktakes submitted on time by clinic nurse'
+   ]},
+  {num:3,field:'ag_deliveries',title:'Stock Deliveries — Batch Numbers, Cold Chain, Storage',
+   options:[
+     'All deliveries for the period reviewed and reconciled',
+     'Batch numbers recorded and verified against packaging',
+     'Cold chain maintained — packaging cold on all deliveries',
+     'Supplier invoices retained and filed appropriately',
+     'Quantities received matched ordered quantities on all occasions',
+     'Stock transferred to locked storage immediately on receipt',
+     'Drug register updated to reflect all received stock'
+   ]},
+  {num:4,field:'ag_storage',title:'Drug Storage Security — Locks, Temperature, Access',
+   options:[
+     'Storage receptacle locked at all times when not in active use',
+     'S4 drug storage confirmed not accessible to patients',
+     'Refrigerator temperature logs reviewed — within 2–8°C throughout period',
+     'Keys / access codes held only by authorised persons',
+     'Storage area inspected — all requirements met',
+     'Access control arrangements remain adequate and appropriate'
+   ]},
+  {num:5,field:'ag_expiry',title:'Expiry Dates and Stock Management',
+   options:[
+     'All S4 drugs checked for expiry — none expired in active supply',
+     'Expiry dates recorded in drug register for all current stock',
+     'Upcoming expiries identified and managed proactively',
+     'Stock rotation in place — oldest stock used first',
+     'No near-expiry concerns identified'
+   ]},
+  {num:6,field:'ag_wastage',title:'Wastage Documentation',
+   options:[
+     'All wastage events documented with drug name, quantity, reason and date',
+     'Witness signature present on all wastage entries',
+     'No unexplained wastage identified for the period',
+     'Wastage rates within expected clinical range',
+     'Wastage disposal method appropriate and documented'
+   ]},
+  {num:7,field:'ag_prescriptions',title:'Standing Orders and Prescriptions',
+   options:[
+     'All standing orders and prescriptions current and valid',
+     'Prescriptions filed appropriately at clinic',
+     'Prescribing authority (RDP) AHPRA registration confirmed current',
+     'No expired or lapsed authorities identified',
+     'Standing orders reviewed and confirmed clinically appropriate'
+   ]},
+  {num:8,field:'ag_compliance',title:'Compliance Checklist Completion',
+   options:[
+     'Daily compliance checklists completed on all trading days',
+     'Monthly compliance audit completed within the period',
+     'All mandatory checklist items confirmed satisfactory',
+     'No items flagged as non-compliant for the period',
+     'Nurse confirms ongoing understanding of MPA 2019 obligations'
+   ]},
+  {num:9,field:'ag_training',title:'Staff Training and Competency',
+   options:[
+     'Nurse AHPRA registration current and verified',
+     'S4 drug handling competency confirmed current',
+     'No lapses in registration or training requirements',
+     'Continuing professional development completed for the period',
+     'All required certifications current and on file'
+   ]},
+  {num:10,field:'ag_incidents',title:'Incident Reports and Adverse Events',
+   options:[
+     'No incidents or adverse events to report for this period',
+     'No near-miss events recorded',
+     'Clinic operating safely with no patient safety concerns',
+     'All procedures followed correctly throughout the period'
+   ]},
+  {num:11,field:'ag_regulatory',title:'Regulatory Compliance — QLD Health',
+   options:[
+     'No new regulatory updates applicable to this clinic at this time',
+     'MPA 2019 compliance obligations reviewed and confirmed understood',
+     'Clinic fully compliant with all current QLD Health requirements',
+     'All documentation meets regulatory standards'
+   ]},
+  {num:12,field:'ag_nextmeeting',title:'Next Meeting Date — Confirmed',
+   options:[
+     'Next S4 Compliance Audit Meeting date confirmed',
+     'Meeting to be held in person at clinic',
+     'Meeting to be held via video call',
+     'Meeting to be held via telephone',
+     'Reminder set for first working day of next month'
+   ]}
+];
+
+var meetingAttendees=[];
+function buildMeetingAttendees(){
+  if(!document.getElementById('meetingAttendeesTable'))return;
+  meetingAttendees=[];
+  var s=getSettings();
+  meetingAttendees.push({name:s.rdpName||'Dr Philip',role:'Responsible Drug Person (RDP)',ahpra:s.rdpAhpra||''});
+  if(currentUser.role==='nurse')meetingAttendees.push({name:currentUser.name,role:'Injecting Nurse',ahpra:currentUser.ahpra||''});
+  renderMeetingAttendeesTable();
+}
+function renderMeetingAttendeesTable(){
+  var el=document.getElementById('meetingAttendeesTable');
+  var rows=meetingAttendees.map(function(a,i){
+    return '<tr>'
+      +'<td><input type="text" value="'+a.name+'" onchange="meetingAttendees['+i+'].name=this.value" style="border:1px solid var(--border);border-radius:5px;padding:5px 8px;font-size:13px;width:100%;"></td>'
+      +'<td><input type="text" value="'+a.role+'" onchange="meetingAttendees['+i+'].role=this.value" style="border:1px solid var(--border);border-radius:5px;padding:5px 8px;font-size:13px;width:100%;"></td>'
+      +'<td><input type="text" value="'+(a.ahpra||'')+'" onchange="meetingAttendees['+i+'].ahpra=this.value" style="border:1px solid var(--border);border-radius:5px;padding:5px 8px;font-size:13px;width:160px;font-family:monospace;"></td>'
+      +'<td>'+(i>0?'<button class="del-row-btn" onclick="meetingAttendees.splice('+i+',1);renderMeetingAttendeesTable()">\u2715</button>':'<span style="font-size:11px;color:var(--muted);">RDP</span>')+'</td>'
+      +'</tr>';
+  }).join('');
+  el.innerHTML='<table class="table"><thead><tr><th>Name</th><th>Role</th><th>AHPRA</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+function addMeetingAttendee(){
+  meetingAttendees.push({name:'',role:'',ahpra:''});
+  renderMeetingAttendeesTable();
+  var rows=document.querySelectorAll('#meetingAttendeesTable tbody tr');
+  if(rows.length)rows[rows.length-1].querySelector('input').focus();
+}
+function buildMeetingAgenda(){
+  if(!document.getElementById('meetingAgenda'))return;
+  var container=document.getElementById('meetingAgenda');
+  var html='';
+  AGENDA_ITEMS.forEach(function(item){
+    var cbHtml='';
+    item.options.forEach(function(opt,oi){
+      var cbId=item.field+'_opt_'+oi;
+      cbHtml+='<label class="agenda-opt-label" id="lbl_'+cbId+'">';
+      cbHtml+='<input type="checkbox" id="'+cbId+'" class="agenda-opt" data-field="'+item.field+'" ';
+      cbHtml+='style="accent-color:var(--teal);width:15px;height:15px;flex-shrink:0;margin-top:2px;" ';
+      cbHtml+='onchange="onAgendaOptChange(this)">';
+      cbHtml+='<span style="font-size:12px;line-height:1.4;">'+opt+'</span>';
+      cbHtml+='</label>';
+    });
+    html+='<div class="audit-agenda-item" id="agenda_block_'+item.field+'">';
+    html+='<div class="item-header" style="margin-bottom:10px;">';
+    html+='<span class="item-num">'+item.num+'</span>';
+    html+='<div style="flex:1;"><div class="item-title">'+item.title+'</div></div>';
+    html+='<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);cursor:pointer;white-space:nowrap;">';
+    html+='<input type="checkbox" id="'+item.field+'_done" ';
+    html+='style="accent-color:var(--green);width:16px;height:16px;" ';
+    html+='onchange="onDiscussedChange(this,\''+item.field+'\')"> Discussed';
+    html+='</label></div>';
+    html+='<div style="margin-bottom:10px;">'+cbHtml+'</div>';
+    html+='<div class="field">';
+    html+='<label style="font-size:10px;">Additional notes (optional)</label>';
+    html+='<textarea id="'+item.field+'" style="height:54px;" ';
+    html+='placeholder="Add specific details, exceptions, or action items..."></textarea>';
+    html+='</div></div>';
+  });
+  container.innerHTML=html;
+}
+
+
+function onAgendaOptChange(cb){
+  var field=cb.getAttribute('data-field');
+  if(!field)return;
+  // Auto-tick "Discussed" when any option is selected
+  if(cb.checked){
+    var doneEl=document.getElementById(field+'_done');
+    if(doneEl&&!doneEl.checked){
+      doneEl.checked=true;
+      onDiscussedChange(doneEl,field);
+    }
+  }
+  // Style the parent label
+  var lbl=cb.parentElement;
+  if(lbl){
+    lbl.style.background=cb.checked?'#e8f5e9':'#f8fafc';
+    lbl.style.borderColor=cb.checked?'var(--green)':'transparent';
+  }
+}
+
+function onDiscussedChange(cb,field){
+  var block=document.getElementById('agenda_block_'+field);
+  if(!block)return;
+  block.style.borderColor=cb.checked?'var(--green)':'var(--border)';
+  block.style.background=cb.checked?'rgba(56,161,105,0.03)':'white';
+}
+
+
+var meetingActions=[{action:'',responsible:'',due:'',done:false}];
+function buildMeetingActions(){
+  if(!document.getElementById('meetingActions'))return;renderMeetingActions();}
+function renderMeetingActions(){
+  var container=document.getElementById('meetingActions');
+  container.innerHTML=meetingActions.map(function(a,i){
+    return '<div style="display:grid;grid-template-columns:1fr 140px 120px 100px 32px;gap:8px;align-items:center;margin-bottom:8px;">'
+      +'<input type="text" placeholder="Action item description..." value="'+a.action+'" onchange="meetingActions['+i+'].action=this.value" style="border:1px solid var(--border);border-radius:6px;padding:7px 8px;font-size:13px;">'
+      +'<input type="text" placeholder="Responsible" value="'+a.responsible+'" onchange="meetingActions['+i+'].responsible=this.value" style="border:1px solid var(--border);border-radius:6px;padding:7px 8px;font-size:13px;">'
+      +'<input type="date" value="'+a.due+'" onchange="meetingActions['+i+'].due=this.value" style="border:1px solid var(--border);border-radius:6px;padding:7px 8px;font-size:13px;">'
+      +'<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">'
+      +'<input type="checkbox" id="dchk6" '+(a.done?'checked':'')+' onchange="meetingActions['+i+'].done=this.checked" style="accent-color:var(--green);"> Complete'
+      +'</label>'
+      +'<button class="del-row-btn" onclick="meetingActions.splice('+i+',1);renderMeetingActions()">\u2715</button>'
+      +'</div>';
+  }).join('');
+}
+function addMeetingAction(){meetingActions.push({action:'',responsible:'',due:'',done:false});renderMeetingActions();}
+function addQuickAction(actionText){
+  meetingActions.push({action:actionText,responsible:'',due:'',done:false});
+  renderMeetingActions();
+  // Scroll to actions
+  var el=document.getElementById('meetingActions');
+  if(el)el.scrollIntoView({behavior:'smooth',block:'nearest'});
+  showToast('Action item added');
+}
+function appendNote(text){
+  var el=document.getElementById('meetingNotes');
+  if(!el)return;
+  if(el.value.trim())el.value=el.value.trim()+'\n'+text;
+  else el.value=text;
+  el.focus();
+  showToast('Note appended');
+}
+
+function collectMeetingData(){
+  var agendaData={};
+  AGENDA_ITEMS.forEach(function(item){
+    var notesEl=document.getElementById(item.field);
+    var doneEl=document.getElementById(item.field+'_done');
+    // Collect selected checkbox options
+    var selectedOpts=[];
+    item.options.forEach(function(opt,oi){
+      var cb=document.getElementById(item.field+'_opt_'+oi);
+      if(cb&&cb.checked)selectedOpts.push(opt);
+    });
+    agendaData[item.field]={
+      notes:notesEl?notesEl.value:'',
+      discussed:doneEl?doneEl.checked:false,
+      title:item.title,
+      selectedOptions:selectedOpts
+    };
+  });
+  // Collect sign-off details
+  var rdpSignName=document.getElementById('signRdpName')?document.getElementById('signRdpName').value:'';
+  var rdpSignAhpra=document.getElementById('signRdpAhpra')?document.getElementById('signRdpAhpra').value:'';
+  var nurseSignName=document.getElementById('signNurseName')?document.getElementById('signNurseName').value:'';
+  var nurseSignAhpra=document.getElementById('signNurseAhpra')?document.getElementById('signNurseAhpra').value:'';
+  return{
+    type:'Meeting',
+    clinic:document.getElementById('meetingClinic').value,
+    date:document.getElementById('meetingDate').value,
+    time:document.getElementById('meetingTime').value,
+    method:document.getElementById('meetingMethod').value,
+    period:document.getElementById('meetingPeriod').value,
+    attendees:[...meetingAttendees],
+    agenda:agendaData,
+    actions:[...meetingActions],
+    notes:document.getElementById('meetingNotes').value,
+    by:currentUser.name,
+    ahpra:currentUser.ahpra||'',
+    rdpSignName:rdpSignName,
+    rdpSignAhpra:rdpSignAhpra,
+    nurseSignName:nurseSignName,
+    nurseSignAhpra:nurseSignAhpra,
+    hasVariance:false
+  };
+}
+
+function refreshMeetingSignoff(){
+  var s=getSettings();
+  var rdpName=document.getElementById('signRdpName');
+  var rdpAhpra=document.getElementById('signRdpAhpra');
+  var nurseName=document.getElementById('signNurseName');
+  var nurseAhpra=document.getElementById('signNurseAhpra');
+  if(rdpName)rdpName.value=s.rdpName||'Dr Philip';
+  if(rdpAhpra)rdpAhpra.value=s.rdpAhpra||'';
+  // Nurse: use current user if nurse, else find nurse for selected clinic
+  var nurseN='',nurseA='';
+  if(currentUser.role==='nurse'){nurseN=currentUser.name;nurseA=currentUser.ahpra||'';}
+  else{
+    var clinicEl=document.getElementById('meetingClinic');
+    var clinic=clinicEl?clinicEl.value:'';
+    var nurses=getUsers().filter(function(u){return u.role==='nurse'&&u.clinic===clinic&&u.active!==false;});
+    if(nurses.length){nurseN=nurses[0].name;nurseA=nurses[0].ahpra||'';}
+  }
+  if(nurseName)nurseName.value=nurseN;
+  if(nurseAhpra)nurseAhpra.value=nurseA;
+}
+function submitMeeting(){
+  var data=collectMeetingData();
+  if(!data.date){showToast('Please set a meeting date');return;}
+  saveRecord(data);
+  showToast('\u2713 Meeting minutes saved');
+  buildMeetingAgenda();
+  meetingActions=[{action:'',responsible:'',due:'',done:false}];
+  buildMeetingActions();
+  document.getElementById('meetingNotes').value='';
+  setTimeout(function(){showPage('dashboard');},1000);
+}
+
+function renderMeetingToPDF(doc, data, s, startY, pageW, marginL, marginR, contentW){
+  if(!pageW){pageW=210;marginL=14;marginR=14;contentW=182;}
+  var y = startY || 46;
+
+  function checkPage(yPos,needed){
+    if(yPos+(needed||10)>272){doc.addPage();return 20;}
+    return yPos;
+  }
+  function sectionHdr(yPos,label,r,g,b){
+    yPos=checkPage(yPos,14);
+    doc.setFillColor(r||15,g||31,b||61);
+    doc.rect(marginL,yPos,contentW,8,'F');
+    doc.setTextColor(255,255,255);
+    doc.setFont('helvetica','bold');doc.setFontSize(9);
+    doc.text(label,marginL+4,yPos+5.5);
+    doc.setTextColor(0,0,0);
+    return yPos+12;
+  }
+
+  // ── MEETING DETAILS BOX ──
+  doc.setFillColor(248,250,252);doc.setDrawColor(221,227,236);
+  doc.rect(marginL,y,contentW,40,'FD');
+  doc.setFillColor(235,240,248);doc.rect(marginL,y,contentW,7,'F');
+  doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor(15,31,61);
+  doc.text('MEETING DETAILS',marginL+4,y+5);
+  var dY=y+12;var lH=7;
+  var c1=marginL+4,c2=marginL+52,c3=marginL+110,c4=marginL+148;
+  function lbl(x,yy,t){doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(100,110,130);doc.text(t,x,yy);}
+  function val(x,yy,t){doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(15,31,61);doc.text((t||'\u2014').slice(0,35),x,yy);}
+  lbl(c1,dY,'CLINIC'); val(c2,dY,data.clinic);
+  lbl(c3,dY,'DATE'); val(c4,dY,data.date);
+  dY+=lH;
+  lbl(c1,dY,'PERIOD COVERED'); val(c2,dY,data.period);
+  lbl(c3,dY,'TIME'); val(c4,dY,data.time);
+  dY+=lH;
+  lbl(c1,dY,'MEETING METHOD / LOCATION'); val(c2,dY,data.method);
+  // Reference number
+  var refNo='MTG-'+((data.clinic||'').replace(/[^A-Za-z0-9]/g,'').slice(0,4).toUpperCase())+'-'+(data.date||'').replace(/-/g,'');
+  lbl(c3,dY,'REFERENCE NO.'); val(c4,dY,refNo);
+  dY+=lH;
+  lbl(c1,dY,'SUBMITTED BY'); val(c2,dY,(data.rdpSignName||s.rdpName||'')+(data.nurseSignName?' & '+data.nurseSignName:''));
+  doc.setTextColor(0,0,0);
+  y+=46;
+
+  // ── ATTENDEES ──
+  y=sectionHdr(y,'ATTENDEES');
+  if(data.attendees&&data.attendees.length){
+    doc.autoTable({startY:y,
+      head:[['Name','Title / Role','AHPRA Registration']],
+      body:data.attendees.map(function(a){return[a.name||'',a.role||'',a.ahpra||'\u2014'];}),
+      styles:{fontSize:9,cellPadding:3,lineColor:[221,227,236],lineWidth:0.2},
+      headStyles:{fillColor:[30,50,90],textColor:255,fontStyle:'bold',fontSize:8},
+      columnStyles:{0:{cellWidth:55},1:{cellWidth:75},2:{cellWidth:52}},
+      alternateRowStyles:{fillColor:[250,252,255]},
+      margin:{left:marginL,right:marginR}
+    });
+    y=doc.lastAutoTable.finalY+8;
+  }
+
+  // ── AGENDA ITEMS ──
+  y=sectionHdr(y,'AGENDA — ITEMS DISCUSSED');
+  AGENDA_ITEMS.forEach(function(item){
+    var d=(data.agenda&&data.agenda[item.field])||{discussed:false,selectedOptions:[],notes:''};
+    var opts=d.selectedOptions||[];
+    var notesText=(d.notes||'').trim();
+    var estH=12+(opts.length*6)+(notesText?10:0)+4;
+    y=checkPage(y,estH);
+
+    // Item header row
+    var hBg=d.discussed?[232,245,233]:[255,253,231];
+    var hBorder=d.discussed?[56,161,105]:[200,140,40];
+    doc.setFillColor(hBg[0],hBg[1],hBg[2]);
+    doc.rect(marginL,y,contentW,7,'F');
+    doc.setDrawColor(hBorder[0],hBorder[1],hBorder[2]);doc.setLineWidth(0.4);
+    doc.rect(marginL,y,contentW,7,'S');doc.setLineWidth(0.2);
+    // Number badge
+    doc.setFillColor(d.discussed?56:160,d.discussed?161:100,d.discussed?105:20);
+    doc.circle(marginL+5,y+3.5,3.2,'F');
+    doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(7);
+    doc.text(String(item.num),marginL+5,y+4.5,'center');
+    // Title
+    doc.setTextColor(15,31,61);doc.setFont('helvetica','bold');doc.setFontSize(8.5);
+    doc.text(item.title,marginL+10,y+4.5);
+    // Status badge
+    var bLabel=d.discussed?'DISCUSSED':'NOT DISCUSSED';
+    var bColor=d.discussed?[56,161,105]:[160,100,20];
+    var bW=doc.getTextWidth(bLabel)+5;
+    doc.setFillColor(bColor[0],bColor[1],bColor[2]);
+    doc.rect(pageW-marginR-bW,y+1.5,bW,4,'F');
+    doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(6);
+    doc.text(bLabel,pageW-marginR-bW+2.5,y+4.5);
+    doc.setTextColor(0,0,0);
+    y+=9;
+
+    if(opts.length>0){
+      // Render each selected checkbox option
+      opts.forEach(function(opt){
+        y=checkPage(y,7);
+        doc.setFillColor(245,252,247);
+        doc.rect(marginL+2,y-0.5,contentW-2,5.5,'F');
+        doc.setDrawColor(180,220,180);doc.setLineWidth(0.2);
+        doc.rect(marginL+2,y-0.5,contentW-2,5.5,'S');
+        doc.setTextColor(30,130,60);doc.setFont('helvetica','bold');doc.setFontSize(9);
+        doc.text('\u2713',marginL+4.5,y+3.5);
+        doc.setTextColor(20,40,20);doc.setFont('helvetica','normal');doc.setFontSize(8.5);
+        var optL=doc.splitTextToSize(opt,contentW-14);
+        if(y+optL.length*4.5+1>272){doc.addPage();y=20;}
+        doc.text(optL,marginL+9,y+3.5);
+        y+=Math.max(optL.length*4.5,5)+2;
+      });
+    } else {
+      doc.setTextColor(160,160,160);doc.setFont('helvetica','italic');doc.setFontSize(8);
+      doc.text('No items selected for this agenda point.',marginL+4,y+4);
+      y+=8;
+    }
+
+    if(notesText){
+      y=checkPage(y,10);
+      doc.setFillColor(255,252,240);doc.setDrawColor(200,160,40);doc.setLineWidth(0.3);
+      doc.rect(marginL+2,y,contentW-2,1,'F');
+      y+=2;
+      doc.setTextColor(100,70,0);doc.setFont('helvetica','bold');doc.setFontSize(7.5);
+      doc.text('NOTES:',marginL+4,y+3.5);
+      var nL=doc.splitTextToSize(notesText,contentW-16);
+      y=checkPage(y,nL.length*4.5+6);
+      doc.setFillColor(255,252,240);doc.rect(marginL+2,y,contentW-2,nL.length*4.5+4,'F');
+      doc.setTextColor(60,40,0);doc.setFont('helvetica','normal');doc.setFontSize(8.5);
+      doc.text(nL,marginL+16,y+4);
+      y+=nL.length*4.5+6;
+    }
+    y+=3;
+  });
+
+  // ── ACTION ITEMS ──
+  var validActions=(data.actions||[]).filter(function(a){return a.action&&a.action.trim();});
+  if(validActions.length){
+    y=checkPage(y,30);
+    y=sectionHdr(y,'ACTION ITEMS & FOLLOW-UP',120,60,10);
+    doc.autoTable({
+      startY:y,
+      head:[['#','Action Required','Responsible','Due Date','Status']],
+      body:validActions.map(function(a,i){
+        return[String(i+1),a.action||'',a.responsible||'\u2014',a.due||'\u2014',a.done?'Complete':'Pending'];
+      }),
+      styles:{fontSize:9,cellPadding:3,lineColor:[221,227,236],lineWidth:0.2},
+      headStyles:{fillColor:[100,60,10],textColor:255,fontStyle:'bold',fontSize:8},
+      columnStyles:{0:{cellWidth:8},1:{cellWidth:76},2:{cellWidth:42},3:{cellWidth:24},4:{cellWidth:22}},
+      bodyStyles:{valign:'top'},
+      alternateRowStyles:{fillColor:[255,252,245]},
+      didParseCell:function(d2){
+        if(d2.column.index===4&&d2.section==='body'){
+          if(d2.cell.raw==='Complete'){d2.cell.styles.textColor=[56,161,105];d2.cell.styles.fontStyle='bold';}
+          else{d2.cell.styles.textColor=[200,60,60];d2.cell.styles.fontStyle='bold';}
+        }
+      },
+      margin:{left:marginL,right:marginR}
+    });
+    y=doc.lastAutoTable.finalY+8;
+  }
+
+  // ── ADDITIONAL NOTES ──
+  var addNotes=(data.notes||'').trim();
+  if(addNotes){
+    y=checkPage(y,20);
+    y=sectionHdr(y,'ADDITIONAL NOTES / COMMENTS',40,80,100);
+    doc.setFillColor(245,250,255);doc.setDrawColor(160,190,220);doc.setLineWidth(0.2);
+    var nLines=doc.splitTextToSize(addNotes,contentW-8);
+    var boxH=nLines.length*4.5+8;
+    y=checkPage(y,boxH);
+    doc.rect(marginL,y,contentW,boxH,'FD');
+    doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(20,40,80);
+    doc.text(nLines,marginL+4,y+5);
+    y+=boxH+6;
+  }
+
+  // ── SIGN-OFF ──
+  y=checkPage(y,55);
+  y=sectionHdr(y,'AUTHORISATION & SIGN-OFF');
+  // Declaration
+  doc.setFillColor(240,248,255);doc.setDrawColor(180,200,220);doc.setLineWidth(0.2);
+  doc.rect(marginL,y,contentW,10,'FD');
+  doc.setFont('helvetica','italic');doc.setFontSize(8);doc.setTextColor(40,60,100);
+  doc.text('We confirm this S4 Drug Compliance Audit Meeting was held as described and that the information recorded is accurate and complete.',marginL+4,y+4);
+  doc.text('Both parties have reviewed and authorised this record. Print and obtain wet-ink signatures for clinic filing.',marginL+4,y+8);
+  doc.setTextColor(0,0,0);
+  y+=14;
+
+  // Two signature boxes
+  var bxW=(contentW-8)/2;
+  var bxH=44;
+
+  // RDP box
+  doc.setFillColor(248,252,248);doc.setDrawColor(0,130,90);doc.setLineWidth(0.4);
+  doc.rect(marginL,y,bxW,bxH,'FD');doc.setLineWidth(0.2);
+  doc.setFillColor(0,120,85);doc.rect(marginL,y,bxW,7,'F');
+  doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(8);
+  doc.text('RESPONSIBLE DRUG PERSON (RDP)',marginL+3,y+5);
+  doc.setTextColor(15,31,61);doc.setFont('helvetica','normal');doc.setFontSize(8.5);
+  doc.text('Name: '+(data.rdpSignName||s.rdpName||'\u2014'),marginL+4,y+13);
+  doc.text('AHPRA: '+(data.rdpSignAhpra||s.rdpAhpra||'\u2014'),marginL+4,y+19);
+  doc.text('Date: '+(data.date||''),marginL+4,y+25);
+  doc.text('Role: Responsible Drug Person',marginL+4,y+31);
+  doc.setDrawColor(100,160,120);doc.setLineWidth(0.3);
+  doc.line(marginL+4,y+39,marginL+bxW-4,y+39);
+  doc.setTextColor(120,120,120);doc.setFont('helvetica','italic');doc.setFontSize(7);
+  doc.text('Authorising Signature',marginL+4,y+43);
+
+  // Nurse box
+  var b2x=marginL+bxW+8;
+  doc.setFillColor(255,252,245);doc.setDrawColor(170,105,0);doc.setLineWidth(0.4);
+  doc.rect(b2x,y,bxW,bxH,'FD');doc.setLineWidth(0.2);
+  doc.setFillColor(160,100,0);doc.rect(b2x,y,bxW,7,'F');
+  doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(8);
+  doc.text('NURSE / INJECTOR',b2x+3,y+5);
+  // Find nurse from attendees
+  var nAtt=(data.attendees||[]).find(function(a){return a.role&&(a.role.toLowerCase().indexOf('nurse')>=0||a.role.toLowerCase().indexOf('injector')>=0);});
+  var nName=data.nurseSignName||(nAtt?nAtt.name:'\u2014');
+  var nAhpra=data.nurseSignAhpra||(nAtt?nAtt.ahpra:'\u2014');
+  doc.setTextColor(15,31,61);doc.setFont('helvetica','normal');doc.setFontSize(8.5);
+  doc.text('Name: '+nName,b2x+4,y+13);
+  doc.text('AHPRA: '+nAhpra,b2x+4,y+19);
+  doc.text('Date: '+(data.date||''),b2x+4,y+25);
+  doc.text('Role: Injecting Nurse',b2x+4,y+31);
+  doc.setDrawColor(180,140,0);doc.setLineWidth(0.3);
+  doc.line(b2x+4,y+39,b2x+bxW-4,y+39);
+  doc.setTextColor(120,120,120);doc.setFont('helvetica','italic');doc.setFontSize(7);
+  doc.text('Authorising Signature',b2x+4,y+43);
+  y+=bxH+8;
+
+  // Retention notice
+  y=checkPage(y,14);
+  doc.setFillColor(240,244,248);doc.setDrawColor(200,210,220);doc.setLineWidth(0.2);
+  doc.rect(marginL,y,contentW,12,'FD');
+  doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.setTextColor(60,60,100);
+  doc.text('\u26a0  RECORD RETENTION',marginL+4,y+5);
+  doc.setFont('helvetica','normal');doc.setTextColor(80,80,80);
+  doc.text('Retain for minimum 2 years from meeting date. Make available to Queensland Health upon request.',marginL+4,y+9.5);
+  doc.text('Medicines and Poisons Act 2019 (Qld) | RDP: '+(s.rdpName||'')+' | AHPRA: '+(s.rdpAhpra||'\u2014'),marginL+4,y+12);
+}
+
+function exportMeetingPDF(savedData){
+  var data=savedData||collectMeetingData();
+  if(!data.date){showToast('Please set a meeting date first');return;}
+  var jsPDFLib=window.jspdf;
+  var doc=new jsPDFLib.jsPDF('p','mm','a4');
+  var s=getSettings();
+  var pageW=210,marginL=14,marginR=14,contentW=182;
+  var printDate=new Date().toLocaleDateString('en-AU',{day:'2-digit',month:'long',year:'numeric'});
+
+  // ── PAGE HEADER ──
+  doc.setFillColor(15,31,61);doc.rect(0,0,pageW,36,'F');
+  doc.setFillColor(0,184,162);doc.rect(0,36,pageW,2,'F');
+  doc.setTextColor(0,184,162);doc.setFont('helvetica','bold');doc.setFontSize(8);
+  doc.text('RX\u00b7AUDIT',marginL,11);
+  doc.setTextColor(255,255,255);doc.setFontSize(18);
+  doc.text('S4 Drug Compliance Audit Meeting',marginL,22);
+  doc.setFontSize(9);doc.setFont('helvetica','normal');doc.text('MINUTES OF MEETING',marginL,29);
+  doc.setTextColor(0,184,162);doc.setFont('helvetica','bold');doc.setFontSize(8);
+  doc.text('QUEENSLAND HEALTH',pageW-marginR,12,'right');
+  doc.setTextColor(180,180,180);doc.setFont('helvetica','normal');doc.setFontSize(7.5);
+  doc.text('Medicines and Poisons Act 2019 (Qld)',pageW-marginR,18,'right');
+  doc.text('Printed: '+printDate,pageW-marginR,24,'right');
+  doc.setTextColor(0,0,0);
+
+  var y=46;
+  renderMeetingToPDF(doc,data,s,y,pageW,marginL,marginR,contentW);
+
+  // ── PAGE FOOTERS ──
+  var pc=doc.internal.getNumberOfPages();
+  for(var pi=1;pi<=pc;pi++){
+    doc.setPage(pi);
+    doc.setFillColor(15,31,61);doc.rect(0,287,pageW,10,'F');
+    doc.setTextColor(0,184,162);doc.setFont('helvetica','bold');doc.setFontSize(7);
+    doc.text('RX\u00b7AUDIT',marginL,292.5);
+    doc.setTextColor(200,200,200);doc.setFont('helvetica','normal');doc.setFontSize(6.5);
+    doc.text('S4 Compliance Audit Meeting \u2014 '+data.clinic+' \u2014 '+data.date,marginL+20,292.5);
+    doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(7);
+    doc.text('Page '+pi+' of '+pc,pageW-marginR,292.5,'right');
+  }
+
+  var fn='S4_Audit_Meeting_'+(data.clinic||'').replace(/[^a-zA-Z0-9]/g,'_')+'_'+(data.date||'')+'.pdf';
+  doc.save(fn);
+  showToast('\u2713 Meeting minutes PDF downloaded');
+}
+
+
+
+// ============================================================
+// AUDIT LOG
+// ============================================================
+function renderLog(){
+  if(!document.getElementById('logTable'))return;
+  var records=getRecords();
+  var fc=document.getElementById('filterClinic')?document.getElementById('filterClinic').value:'';
+  var ft=document.getElementById('filterType')?document.getElementById('filterType').value:'';
+  var ff=document.getElementById('filterFrom')?document.getElementById('filterFrom').value:'';
+  var fto=document.getElementById('filterTo')?document.getElementById('filterTo').value:'';
+  if(fc)records=records.filter(function(r){return r.clinic===fc;});
+  if(ft)records=records.filter(function(r){return r.type===ft;});
+  if(ff)records=records.filter(function(r){return r.date>=ff;});
+  if(fto)records=records.filter(function(r){return r.date<=fto;});
+  document.getElementById('logSub').textContent=currentUser.role==='nurse'?'Records for '+currentUser.clinic:'All S4 drug records \u2014 all clinics';
+  var el=document.getElementById('logTable');
+  if(!records.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">\ud83d\udccb</div><p>No records found.</p></div>';return;}
+  var rows=records.map(function(r){
+    var detail='';
+    if(r.type==='Stocktake')detail=r.subtype||'';
+    if(r.type==='Delivery')detail=(r.supplier||'')+(r.attachment?' \ud83d\udcce':'');
+    if(r.type==='Compliance')detail=r.checksPassed+'/'+r.checksTotal+' passed';
+    if(r.type==='Meeting')detail=r.period||'';
+    var tc=r.type==='Stocktake'?'blue':r.type==='Delivery'?'green':r.type==='Meeting'?'purple':'amber';
+    return '<tr><td style="font-family:monospace;font-size:11px;">'+r.date+'</td><td style="font-family:monospace;font-size:11px;">'+r.time+'</td><td>'+r.clinic+'</td>'
+      +'<td><span class="pill '+tc+'">'+r.type+'</span></td>'
+      +'<td style="font-size:12px;color:var(--muted);">'+detail+'</td>'
+      +'<td>'+(r.by||'\u2014')+'</td>'
+      +'<td>'+(r.hasVariance?'<span class="pill red">\u26a0 Variance</span>':'<span class="pill green">\u2713 OK</span>')+'</td></tr>';
+  }).join('');
+  el.innerHTML='<table class="table"><thead><tr><th>Date</th><th>Time</th><th>Clinic</th><th>Type</th><th>Details</th><th>By</th><th>Status</th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+
+// ============================================================
+// REPORTS / PDF
+// ============================================================
+function exportPDF(reportType){
+  var jsPDFLib=window.jspdf;
+  var doc=new jsPDFLib.jsPDF('p','mm','a4');
+  var pageW=210,marginL=14,marginR=14,contentW=182;
+  var rptClinic=document.getElementById('rptClinic')?document.getElementById('rptClinic').value:'';
+  var rptFrom=document.getElementById('rptFrom')?document.getElementById('rptFrom').value:'';
+  var rptTo=document.getElementById('rptTo')?document.getElementById('rptTo').value:'';
+  var records=currentUser.role==='nurse'?getRecords():getAllRecords();
+  if(rptClinic)records=records.filter(function(r){return r.clinic===rptClinic;});
+  if(rptFrom)records=records.filter(function(r){return r.date>=rptFrom;});
+  if(rptTo)records=records.filter(function(r){return r.date<=rptTo;});
+  var s=getSettings();
+  var now=new Date().toLocaleDateString('en-AU',{day:'2-digit',month:'2-digit',year:'numeric'});
+  var clinicStr=rptClinic||(currentUser.role==='nurse'?currentUser.clinic:'All clinics');
+  var periodStr=(rptFrom&&rptTo)?rptFrom+' to '+rptTo:'All dates';
+  doc.setFillColor(15,31,61);doc.rect(0,0,210,28,'F');
+  doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(14);
+  doc.text('RX\u00b7AUDIT \u2014 S4 Drug Compliance System',14,12);
+  doc.setFontSize(9);doc.setFont('helvetica','normal');
+  doc.text('Queensland Health \u2014 Medicines and Poisons Act 2019',14,20);
+  doc.text('Generated: '+now+'  |  RDP: '+s.rdpName+'  |  AHPRA: '+s.rdpAhpra,14,26);
+  doc.setTextColor(0,0,0);
+  var y=36;
+  var titles={register:'Drug Register \u2014 Full Audit Report',delivery:'Stock Delivery Log',variance:'Variance & Discrepancy Report',compliance:'Compliance Check History',meetings:'Audit Meeting Minutes',all:'Full Audit Package'};
+  doc.setFont('helvetica','bold');doc.setFontSize(13);doc.text(titles[reportType]||'Report',14,y);y+=6;
+  doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(100,100,100);
+  doc.text('Clinic: '+clinicStr+'   Period: '+periodStr,14,y);doc.setTextColor(0,0,0);y+=8;
+  function addSection(title,data,cols){
+    if(!data.length)return;
+    doc.setFont('helvetica','bold');doc.setFontSize(10);doc.text(title,14,y);y+=4;
+    doc.autoTable({startY:y,head:[cols.map(function(c){return c.header;})],body:data.map(function(r){return cols.map(function(c){return String(c.get(r)!=null?c.get(r):'\u2014');});}),styles:{fontSize:8,cellPadding:2},headStyles:{fillColor:[15,31,61],textColor:255,fontStyle:'bold'},alternateRowStyles:{fillColor:[245,248,252]},margin:{left:14,right:14}});
+    y=doc.lastAutoTable.finalY+10;
+  }
+  if(reportType==='register'||reportType==='all'){
+    var stRows=[];
+    records.filter(function(r){return r.type==='Stocktake';}).forEach(function(r){(r.drugs||[]).forEach(function(d){stRows.push({date:r.date,clinic:r.clinic,dn:d.drug,op:d.opening,ad:d.administered,wa:d.wasted,ct:d.count,dv:d.variance,by:r.by,ahpra:r.ahpra});});});
+    addSection('STOCKTAKE REGISTER',stRows,[{header:'Date',get:function(r){return r.date;}},{header:'Clinic',get:function(r){return r.clinic;}},{header:'Drug',get:function(r){return r.dn;}},{header:'Open',get:function(r){return r.op;}},{header:'Admin',get:function(r){return r.ad;}},{header:'Waste',get:function(r){return r.wa;}},{header:'Count',get:function(r){return r.ct;}},{header:'Var',get:function(r){return r.dv;}},{header:'Nurse',get:function(r){return r.by;}},{header:'AHPRA',get:function(r){return r.ahpra;}}]);
+  }
+  if(reportType==='delivery'||reportType==='all'){
+    var dlRows=[];
+    records.filter(function(r){return r.type==='Delivery';}).forEach(function(r){var items=r.items&&r.items.length?r.items:[{}];items.forEach(function(item){dlRows.push({date:r.date,clinic:r.clinic,supplier:r.supplier,invoice:r.invoice,iDrug:item.drug,iQty:item.qty,iBatch:item.batch,iExp:item.expiry,by:r.by});});});
+    addSection('STOCK DELIVERY LOG',dlRows,[{header:'Date',get:function(r){return r.date;}},{header:'Clinic',get:function(r){return r.clinic;}},{header:'Supplier',get:function(r){return r.supplier;}},{header:'Invoice',get:function(r){return r.invoice;}},{header:'Drug',get:function(r){return r.iDrug;}},{header:'Qty',get:function(r){return r.iQty;}},{header:'Batch',get:function(r){return r.iBatch;}},{header:'Expiry',get:function(r){return r.iExp;}},{header:'By',get:function(r){return r.by;}}]);
+  }
+  if(reportType==='variance'||reportType==='all'){
+    addSection('VARIANCE & DISCREPANCY REPORT',records.filter(function(r){return r.hasVariance;}),[{header:'Date',get:function(r){return r.date;}},{header:'Clinic',get:function(r){return r.clinic;}},{header:'By',get:function(r){return r.by;}},{header:'Explanation',get:function(r){return r.varianceNote||'No explanation provided';}}]);
+  }
+  if(reportType==='compliance'||reportType==='all'){
+    addSection('COMPLIANCE CHECK HISTORY',records.filter(function(r){return r.type==='Compliance';}),[{header:'Date',get:function(r){return r.date;}},{header:'Clinic',get:function(r){return r.clinic;}},{header:'Type',get:function(r){return r.subtype;}},{header:'By',get:function(r){return r.by;}},{header:'Result',get:function(r){return r.checksPassed+'/'+r.checksTotal+' passed';}}]);
+  }
+  if(reportType==='meetings'||reportType==='all'){
+    var meetings=records.filter(function(r){return r.type==='Meeting';});
+    if(meetings.length===0){
+      doc.setFont('helvetica','normal');doc.setFontSize(10);doc.setTextColor(120,120,120);
+      doc.text('No meeting records found for the selected period and clinic.',14,y);y+=10;
+      doc.setTextColor(0,0,0);
+    } else {
+      meetings.forEach(function(m,mi){
+        // Each meeting gets its own professional PDF via exportMeetingPDF
+        // For multi-meeting reports, render each inline
+        if(mi>0){doc.addPage();y=20;}
+        renderMeetingToPDF(doc,m,s,y,pageW,marginL,marginR,contentW);
+      });
+    }
+  }
+  var pc=doc.internal.getNumberOfPages();
+  for(var pi=1;pi<=pc;pi++){doc.setPage(pi);doc.setFontSize(7);doc.setTextColor(150,150,150);doc.text('Page '+pi+' of '+pc+' \u2014 Confidential \u2014 RX\u00b7AUDIT \u2014 '+s.rdpName,14,290);}
+  doc.save('RXAudit_'+reportType+'_'+now.replace(/\//g,'-')+'.pdf');
+  showToast('\u2713 PDF downloaded');
+}
+
+// ============================================================
+// USER MANAGEMENT
+// ============================================================
+function renderUsers(){
+  if(!document.getElementById('usersTable'))return;
+  var users=getUsers();var el=document.getElementById('usersTable');
+  if(!el)return;
+  var rows=users.map(function(u){
+    var rolePill=u.role==='rdp'?'<span class="pill teal">RDP</span>':u.role==='admin'?'<span class="pill blue">Admin</span>':'<span class="pill amber">Nurse</span> '+u.clinic;
+    var actions=u.role!=='rdp'
+      ?'<button class="btn btn-ghost btn-sm" onclick="editUser('+u.id+')">Edit</button> '
+        +'<button class="btn btn-ghost btn-sm" onclick="viewNurseDocs('+u.id+')" style="color:var(--teal);">Files</button> '
+        +'<button class="btn btn-ghost btn-sm" onclick="resetPin('+u.id+')">Reset PIN</button> '
+        +'<button class="btn btn-red btn-sm" onclick="toggleUserActive('+u.id+')">'+(u.active!==false?'Disable':'Enable')+'</button>'
+      :'<span style="font-size:11px;color:var(--muted);">Primary RDP</span>';
+    var status=u.active!==false?'<span class="pill green">Active</span>':'<span class="pill red">Disabled</span>';
+    return '<tr><td style="font-weight:600;">'+u.name+'</td><td style="font-family:monospace;font-size:12px;">'+u.username+'</td><td>'+rolePill+'</td><td style="font-family:monospace;font-size:12px;">'+(u.ahpra||'\u2014')+'</td><td style="font-size:12px;">'+(u.email||'\u2014')+'</td><td style="font-size:12px;">'+(u.emergency||'\u2014')+'</td><td>'+status+'</td><td style="text-align:right;white-space:nowrap;">'+actions+'</td></tr>';
+  }).join('');
+  el.innerHTML='<table class="table"><thead><tr><th>Name</th><th>Username</th><th>Role</th><th>AHPRA</th><th>Email</th><th>Emergency</th><th>Status</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+function openUserModal(user,defaultRole){
+  var role=user?user.role:defaultRole;
+  document.getElementById('userModalTitle').textContent=user?(role==='nurse'?'Edit nurse':'Edit admin'):(role==='nurse'?'New nurse account':'New admin account');
+  document.getElementById('editUserId').value=user?user.id:'';
+  document.getElementById('editUserRole').value=role;
+  document.getElementById('adminFields').classList.toggle('hidden',role==='nurse');
+  document.getElementById('nurseFields').classList.toggle('hidden',role!=='nurse');
+  if(role==='nurse'){
+    document.getElementById('unName').value=user?user.name:'';
+    document.getElementById('unUsername').value=user?user.username:'';
+    document.getElementById('unAhpra').value=user?(user.ahpra||''):'';
+    document.getElementById('unClinic').value=user?(user.clinic||''):'';
+    document.getElementById('unEmail').value=user?(user.email||''):'';
+    document.getElementById('unEmergency').value=user?(user.emergency||''):'';
+    document.getElementById('unPin').value=user?user.pin:'';
+  } else {
+    document.getElementById('umName').value=user?user.name:'';
+    document.getElementById('umUsername').value=user?user.username:'';
+    document.getElementById('umAhpra').value=user?(user.ahpra||''):'';
+    document.getElementById('umPin').value=user?user.pin:'';
+  }
+  document.getElementById('userModal').classList.add('open');
+}
+function closeUserModal(){document.getElementById('userModal').classList.remove('open');}
+function editUser(id){var user=getUsers().find(function(u){return u.id===id;});if(user)openUserModal(user,user.role);}
+function saveUser(){
+  var id=document.getElementById('editUserId').value;
+  var role=document.getElementById('editUserRole').value;
+  var isNurse=role==='nurse';
+  var name=document.getElementById(isNurse?'unName':'umName').value.trim();
+  var username=document.getElementById(isNurse?'unUsername':'umUsername').value.trim().toLowerCase();
+  var ahpra=document.getElementById(isNurse?'unAhpra':'umAhpra').value.trim();
+  var pin=document.getElementById(isNurse?'unPin':'umPin').value.trim();
+  if(!name||!username||!pin){showToast('Name, username and PIN are required');return;}
+  if(!/^\d{4,8}$/.test(pin)){showToast('PIN must be 4\u20138 digits');return;}
+  var users=getUsers();
+  if(users.find(function(u){return u.username.toLowerCase()===username&&String(u.id)!==id;})){showToast('Username already taken');return;}
+  if(id){
+    users=users.map(function(u){
+      if(String(u.id)!==id)return u;
+      var upd=Object.assign({},u,{name:name,username:username,ahpra:ahpra,pin:pin});
+      if(isNurse){upd.clinic=document.getElementById('unClinic').value.trim();upd.email=document.getElementById('unEmail').value.trim();upd.emergency=document.getElementById('unEmergency').value.trim();}
+      return upd;
+    });
+    showToast('\u2713 Account updated');
+  } else {
+    var newU={id:Date.now(),role:role,username:username,pin:pin,name:name,ahpra:ahpra,active:true};
+    if(isNurse){newU.clinic=document.getElementById('unClinic').value.trim();newU.email=document.getElementById('unEmail').value.trim();newU.emergency=document.getElementById('unEmergency').value.trim();}
+    users.push(newU);showToast('\u2713 Account created');
+  }
+  saveUsers(users);closeUserModal();renderUsers();
+  fillClinicSelect('stockClinic',false);fillClinicSelect('complianceClinic',false);fillClinicSelect('delivClinic',false);
+}
+function resetPin(id){
+  var p=prompt('New PIN (4\u20138 digits):');if(!p)return;
+  if(!/^\d{4,8}$/.test(p)){showToast('PIN must be 4\u20138 digits');return;}
+  saveUsers(getUsers().map(function(u){return u.id===id?Object.assign({},u,{pin:p}):u;}));
+  showToast('\u2713 PIN reset');renderUsers();
+}
+function toggleUserActive(id){
+  saveUsers(getUsers().map(function(u){return u.id===id?Object.assign({},u,{active:u.active===false?true:false}):u;}));
+  renderUsers();
+}
+
+// ============================================================
+// CLINICS & SETTINGS
+// ============================================================
+function renderClinics(){
+  if(!document.getElementById('clinicsTable'))return;
+  var s=getSettings();var users=getUsers().filter(function(u){return u.role==='nurse';});
+  var rows=s.clinics.map(function(c,i){
+    var nurses=users.filter(function(u){return u.clinic===c;}).map(function(u){return u.name;}).join(', ')||'\u2014';
+    return '<tr><td style="font-weight:600;">'+c+'</td><td style="font-size:12px;color:var(--muted);">'+nurses+'</td><td style="text-align:right;"><button class="btn btn-red btn-sm" onclick="removeClinic('+i+')">Remove</button></td></tr>';
+  }).join('');
+  var el=document.getElementById('clinicsTable');
+  if(el)el.innerHTML='<table class="table"><thead><tr><th>Clinic</th><th>Nurses</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+function addClinic(){
+  var name=prompt('New clinic name:');if(!name||!name.trim())return;
+  var s=getSettings();if(s.clinics.indexOf(name.trim())>=0){showToast('Clinic already exists');return;}
+  s.clinics.push(name.trim());saveSettingsObj(s);renderClinics();
+  ['stockClinic','complianceClinic','delivClinic'].forEach(function(id){fillClinicSelect(id,false);});showToast('\u2713 Clinic added');
+}
+function removeClinic(i){
+  var s=getSettings();var c=s.clinics[i];
+  if(getUsers().some(function(u){return u.role==='nurse'&&u.clinic===c;})){showToast('Reassign nurses first');return;}
+  if(!confirm('Remove "'+c+'"?'))return;
+  s.clinics.splice(i,1);saveSettingsObj(s);renderClinics();fillClinicSelect('stockClinic',false);
+}
+function saveSettings(){
+  var s=getSettings();
+  ['rdpName','rdpAhpra','rdpSpec','rdpPhone'].forEach(function(id){s[id]=document.getElementById(id).value;});
+  saveSettingsObj(s);
+  var newPin=document.getElementById('rdpNewPin').value.trim();
+  var users=getUsers().map(function(u){
+    if(u.role!=='rdp')return u;
+    var upd=Object.assign({},u,{name:s.rdpName,ahpra:s.rdpAhpra});
+    if(newPin){if(!/^\d{4,8}$/.test(newPin)){showToast('PIN must be 4\u20138 digits');return u;}upd.pin=newPin;}
+    return upd;
+  });
+  saveUsers(users);document.getElementById('rdpNewPin').value='';showToast('\u2713 Settings saved');
+}
+
+// ============================================================
+// DOCUMENTS & FILES — shared docs, nurse docs, read receipts
+// ============================================================
+
+function viewNurseDocs(nurseId){
+  showPage('documents');
+  setTimeout(function(){
+    var sel=document.getElementById('nurseDocsSelect');
+    if(sel){sel.value=String(nurseId);onNurseDocsSelectChange();}
+  },150);
+}
+
+// ── DASHBOARD NOTIFICATION BANNER ──
+function checkDocumentNotifications(){
+  if(currentUser.role==='nurse'){
+    var unread=getUnreadNotifications();
+    var banner=document.getElementById('docNotificationBanner');
+    if(!banner){
+      // Insert after monthlyReminderBanner if it exists
+      var mb=document.getElementById('monthlyReminderBanner');
+      if(mb){
+        var nb=document.createElement('div');
+        nb.id='docNotificationBanner';
+        mb.parentNode.insertBefore(nb,mb.nextSibling);
+        banner=nb;
+      }
+    }
+    if(!banner)return;
+    if(!unread.length){banner.innerHTML='';return;}
+    banner.innerHTML='<div style="background:linear-gradient(135deg,rgba(0,184,162,0.1),rgba(66,153,225,0.08));border:1px solid rgba(0,184,162,0.3);border-radius:10px;padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">'
+      +'<div><div style="font-weight:700;color:var(--navy);font-size:14px;">📄 '+unread.length+' new document'+(unread.length>1?'s':'')+' to review</div>'
+      +'<div style="font-size:12px;color:var(--muted);margin-top:3px;">'+unread.map(function(d){return d.name;}).join(', ')+'</div></div>'
+      +'<button class="btn btn-primary btn-sm" onclick="showPage(\'documents\')">View documents →</button>'
+      +'</div>';
+  }
+}
+
+// ── MAIN RENDER ──
+function renderDocumentsPage(){
+  var isNurse=(currentUser.role==='nurse');
+  var sub=document.getElementById('docsPageSub');
+  if(sub)sub.textContent=isNurse
+    ?'Shared clinic documents and your personal files'
+    :'Upload and manage compliance documents for all nurses';
+
+  // Shared docs card header badge
+  var adminBtn=document.getElementById('sharedDocsAdminBtn');
+  if(adminBtn)adminBtn.innerHTML=isNurse
+    ?'<span class="pill blue">Read only</span>'
+    :'';
+
+  // Render shared docs (upload button built into the render function)
+  renderSharedDocs(isNurse);
+
+  // Nurse docs section
+  var nurseTitle=document.getElementById('nurseDocsTitle');
+  var nurseAdminSel=document.getElementById('nurseDocsAdminSelect');
+  var nurseDocsList=document.getElementById('nurseDocsList');
+  var nurseUpload=document.getElementById('nurseUploadWrapper');
+  var adminNurseUpload=document.getElementById('adminNurseUploadWrapper');
+
+  if(isNurse){
+    if(nurseTitle)nurseTitle.textContent='\ud83d\udcc4 My Documents';
+    if(nurseUpload)nurseUpload.style.display='block';
+    if(adminNurseUpload)adminNurseUpload.style.display='none';
+    if(nurseAdminSel)nurseAdminSel.innerHTML='';
+    if(nurseDocsList)renderNurseDocsList(currentUser.id,nurseDocsList,false);
+  } else {
+    if(nurseTitle)nurseTitle.textContent='\ud83d\udcc4 Nurse Profile Documents';
+    if(nurseUpload)nurseUpload.style.display='none';
+    if(adminNurseUpload)adminNurseUpload.style.display='block';
+    var nurses=getUsers().filter(function(u){return u.role==='nurse'&&u.active!==false;});
+    if(nurseAdminSel){
+      if(nurses.length){
+        nurseAdminSel.innerHTML='<select id="nurseDocsSelect" onchange="onNurseDocsSelectChange()" style="border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:13px;">'
+          +nurses.map(function(u){return'<option value="'+u.id+'">'+u.name+' \u2014 '+u.clinic+'</option>';}).join('')+'</select>';
+        window._currentNurseDocsId=nurses[0].id;
+        if(nurseDocsList)renderNurseDocsList(nurses[0].id,nurseDocsList,false);
+      } else {
+        nurseAdminSel.innerHTML='<span style="font-size:13px;color:var(--muted);">No nurse accounts yet</span>';
+        if(nurseDocsList)nurseDocsList.innerHTML='<div class="empty-state"><p>Create nurse accounts first.</p></div>';
+      }
+    }
+  }
+}
+
+
+function onNurseDocsSelectChange(){
+  var sel=document.getElementById('nurseDocsSelect');
+  if(!sel)return;
+  var nurseId=parseInt(sel.value)||sel.value;
+  window._currentNurseDocsId=nurseId;
+  renderNurseDocsList(nurseId, document.getElementById('nurseDocsList'), false);
+}
+
+// Nurse uploads her own doc
+function handleNurseUploadSelf(input){
+  if(!input.files||!input.files.length)return;
+  uploadFilesForNurse(input.files, currentUser.id, input);
+}
+
+// Admin uploads to currently selected nurse
+function handleAdminNurseUpload(input){
+  if(!input.files||!input.files.length)return;
+  var nurseId=window._currentNurseDocsId;
+  if(!nurseId){showToast('Please select a nurse first');return;}
+  uploadFilesForNurse(input.files, nurseId, input);
+}
+
+function uploadFilesForNurse(files, nurseId, input){
+  var docs=getNurseDocs(nurseId);
+  var loaded=0; var total=files.length;
+  Array.from(files).forEach(function(file){
+    readFileAsB64(file,function(data){
+      docs.unshift({id:'nd_'+Date.now()+'_'+Math.random().toString(36).slice(2),
+        name:file.name,ext:getExt(file.name),size:file.size,data:data,
+        uploaded:new Date().toLocaleDateString('en-AU')});
+      loaded++;
+      if(loaded===total){
+        saveNurseDocs(nurseId,docs);
+        renderNurseDocsList(nurseId,document.getElementById('nurseDocsList'),false);
+        showToast('✓ '+total+' file'+(total>1?'s':'')+' uploaded');
+        if(input)input.value='';
+      }
+    },file.size);
+  });
+}
+
+function renderSharedDocs(isNurse){
+  var listEl=document.getElementById('sharedDocsList');
+  if(!listEl)return;
+  var docs=getSharedDocs();
+  var html='';
+
+  // Upload button - only for admin, rendered INSIDE sharedDocsList
+  if(!isNurse){
+    html+='<div style="margin-bottom:16px;">'
+      +'<div style="border:2px dashed var(--teal);border-radius:10px;padding:20px;text-align:center;background:rgba(0,184,162,0.04);">'
+      +'<div style="font-size:28px;margin-bottom:6px;">📂</div>'
+      +'<div style="font-size:13px;color:var(--muted);margin-bottom:10px;">PDF, Word, Excel, images — up to 5 MB per file</div>'
+      +'<label for="sharedFileInput" style="display:inline-block;background:var(--teal);color:var(--navy);font-weight:700;padding:10px 24px;border-radius:7px;cursor:pointer;font-size:14px;">📎 Choose Files to Upload</label>'
+      +'<input type="file" id="sharedFileInput" style="display:none;" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.txt" onchange="handleSharedUpload(this)">'
+      +'</div></div>';
+  }
+
+  if(!docs.length){
+    html+='<div class="empty-state"><div class="empty-icon">📂</div>'
+      +'<p>'+(isNurse?'No shared clinic documents yet.':'No shared documents yet. Upload files above to share with all nurses.')+'</p></div>';
+    listEl.innerHTML=html;
+    return;
+  }
+
+  var rows=docs.map(function(d){
+    var size=d.size>1048576?(d.size/1048576).toFixed(1)+' MB':(Math.round(d.size/1024)||1)+' KB';
+    var isRead=isNurse&&hasReadDoc(d.id);
+    var readBy=!isNurse?getDocReadBy(d.id):null;
+    var readBadge=isNurse
+      ?(isRead?'<span class="pill green" style="font-size:10px;">\u2713 Read</span>':'<span class="pill amber" style="font-size:10px;">Unread</span>')
+      :(readBy&&readBy.length?'<span class="pill green" style="font-size:10px;">\u2713 '+readBy.length+' read</span>':'<span class="pill amber" style="font-size:10px;">Not yet read</span>');
+    var newBadge=(!isRead&&isNurse)?' <span class="pill teal" style="font-size:9px;">NEW</span>':'';
+    var nameStyle=(!isRead&&isNurse)?'font-weight:700;color:var(--navy);':'font-weight:500;';
+    var actions=isNurse
+      ?(isRead
+        ?'<button class="btn btn-ghost btn-sm" onclick="downloadDocAndMark(\''+d.id+'\')">&#x2B07; Download</button>'
+        :'<button class="btn btn-primary btn-sm" onclick="downloadDocAndMark(\''+d.id+'\')">&#x2B07; Download &amp; Mark Read</button>')
+      :'<button class="btn btn-ghost btn-sm" onclick="downloadDoc(\'shared\',\''+d.id+'\',null)">&#x2B07; Download</button>'
+       +' <button class="btn btn-ghost btn-sm" onclick="viewReadReceipts(\''+d.id+'\',\''+d.name.replace(/'/g,"\\'")+'\')">\uD83D\uDC41 Receipts</button>'
+       +' <button class="btn btn-red btn-sm" onclick="deleteSharedDoc(\''+d.id+'\')">Delete</button>';
+    return '<tr style="'+((!isRead&&isNurse)?'background:rgba(0,184,162,0.04);':'')+'">'
+      +'<td><span style="'+nameStyle+'">'+d.name+'</span>'+newBadge+'</td>'
+      +'<td><span class="pill blue" style="font-size:10px;">'+d.ext.toUpperCase()+'</span></td>'
+      +'<td style="font-size:12px;color:var(--muted);">'+size+'</td>'
+      +'<td style="font-size:12px;color:var(--muted);">'+d.uploaded+'</td>'
+      +'<td>'+readBadge+'</td>'
+      +'<td style="text-align:right;white-space:nowrap;">'+actions+'</td>'
+      +'</tr>';
+  }).join('');
+
+  html+='<table class="table"><thead><tr>'
+    +'<th>File name</th><th>Type</th><th>Size</th><th>Uploaded</th><th>Status</th>'
+    +'<th style="text-align:right;"></th>'
+    +'</tr></thead><tbody>'+rows+'</tbody></table>';
+  listEl.innerHTML=html;
+}
+
+
+function renderNurseDocsList(nurseId, container){
+  if(!container)return;
+  var docs=getNurseDocs(nurseId);
+  if(!docs.length){
+    container.innerHTML='<div class="empty-state"><div class="empty-icon">📄</div><p>No documents uploaded yet.</p></div>';
+    return;
+  }
+  var canDel=isAdmin()||(String(currentUser.id)===String(nurseId));
+  var rows=docs.map(function(d){
+    var size=d.size>1048576?(d.size/1048576).toFixed(1)+' MB':(Math.round(d.size/1024)||1)+' KB';
+    return '<tr>'
+      +'<td style="font-weight:500;">'+d.name+'</td>'
+      +'<td><span class="pill amber" style="font-size:10px;">'+d.ext.toUpperCase()+'</span></td>'
+      +'<td style="font-size:12px;color:var(--muted);">'+size+'</td>'
+      +'<td style="font-size:12px;color:var(--muted);">'+d.uploaded+'</td>'
+      +'<td style="text-align:right;white-space:nowrap;">'
+      +'<button class="btn btn-ghost btn-sm" onclick="downloadDoc(\'nurse\',\''+d.id+'\',\''+nurseId+'\')">⬇ Download</button>'
+      +(canDel?' <button class="btn btn-red btn-sm" onclick="deleteNurseDoc(\''+nurseId+'\',\''+d.id+'\')">Delete</button>':'')
+      +'</td></tr>';
+  }).join('');
+  container.innerHTML='<table class="table"><thead><tr><th>File name</th><th>Type</th><th>Size</th><th>Uploaded</th><th style="text-align:right;"></th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+
+function handleSharedUpload(input){
+  if(!input.files||!input.files.length)return;
+  var files=Array.from(input.files);
+  var docs=getSharedDocs();
+  var total=files.length;
+  var loaded=0;
+  files.forEach(function(file){
+    readFileAsB64(file,function(data){
+      if(data){
+        docs.unshift({
+          id:'sd_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),
+          name:file.name,
+          ext:getExt(file.name),
+          size:file.size,
+          data:data,
+          uploaded:new Date().toLocaleDateString('en-AU'),
+          by:currentUser.name,
+          uploadedISO:new Date().toISOString()
+        });
+      }
+      loaded++;
+      if(loaded===total){
+        saveSharedDocs(docs);
+        notifyNursesOfNewDoc(docs[0]?docs[0].name:'document');
+        renderSharedDocs(false);
+        input.value='';
+        showToast('\u2713 '+total+' file'+(total>1?'s':'')+' uploaded \u2014 nurses will be notified');
+      }
+    },file.size);
+  });
+}
+
+function handleNurseUpload(input,nurseId){
+  if(!input.files||!input.files.length)return;
+  var docs=getNurseDocs(nurseId);
+  var total=input.files.length;var loaded=0;
+  Array.from(input.files).forEach(function(file){
+    readFileAsB64(file,function(data){
+      docs.unshift({id:'nd_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),
+        name:file.name,ext:getExt(file.name),size:file.size,
+        data:data,uploaded:new Date().toLocaleDateString('en-AU'),
+        uploadedISO:new Date().toISOString()});
+      loaded++;
+      if(loaded===total){
+        saveNurseDocs(nurseId,docs);
+        renderAdminNurseDocsSection(nurseId,
+          document.getElementById('nurseDocsUploadArea'),
+          document.getElementById('nurseDocsList'));
+        showToast('\u2713 '+total+' file'+(total>1?'s':'')+' uploaded');
+      }
+    },file.size);
+  });
+  input.value='';
+}
+
+function readFileAsB64(file,cb,size){
+  if(size>5242880){cb(null);showToast('File too large (max 5MB): '+file.name);return;}
+  var r=new FileReader();
+  r.onload=function(e){cb(e.target.result);};
+  r.onerror=function(){cb(null);};
+  r.readAsDataURL(file);
+}
+function getExt(name){var p=name.lastIndexOf('.');return p>=0?name.slice(p+1).toLowerCase():'file';}
+
+// ── DOWNLOAD ──
+function downloadDoc(type,docId,nurseId){
+  var doc=null;
+  if(type==='shared')doc=getSharedDocs().find(function(d){return d.id===docId;});
+  else doc=getNurseDocs(nurseId).find(function(d){return d.id===docId;});
+  if(!doc){showToast('File not found');return;}
+  if(!doc.data){showToast('File data not available — file may have been too large to store');return;}
+  var a=document.createElement('a');a.href=doc.data;a.download=doc.name;a.click();
+  showToast('\u2713 Downloading: '+doc.name);
+}
+
+function downloadDocAndMark(docId){
+  // Nurse downloads and marks as read
+  downloadDoc('shared',docId,null);
+  markDocRead(docId);
+  setTimeout(function(){
+    renderSharedDocs(true);
+    // Also update notification banner
+    var banner=document.getElementById('docNotificationBanner');
+    if(banner)checkDocumentNotifications();
+  },300);
+}
+
+// ── READ RECEIPTS MODAL ──
+function viewReadReceipts(docId,docName){
+  var readBy=getDocReadBy(docId);
+  var nurses=getUsers().filter(function(u){return u.role==='nurse';});
+  var unread=nurses.filter(function(u){
+    var receipts=getReadReceipts();
+    return !(receipts[docId]&&receipts[docId][String(u.id)]);
+  });
+  var html='<div style="font-size:13px;font-weight:600;color:var(--navy);margin-bottom:12px;">"'+docName+'" — Read Receipts</div>';
+  if(readBy.length){
+    html+='<div style="margin-bottom:10px;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--green);margin-bottom:6px;">✓ Read by</div>';
+    html+=readBy.map(function(r){return'<div style="display:flex;justify-content:space-between;padding:6px 10px;background:rgba(56,161,105,0.06);border-radius:6px;margin-bottom:4px;font-size:13px;"><span>'+r.name+'</span><span style="color:var(--muted);font-size:12px;">'+r.date+'</span></div>';}).join('');
+    html+='</div>';
+  }
+  if(unread.length){
+    html+='<div><div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--amber);margin-bottom:6px;">⏳ Not yet read</div>';
+    html+=unread.map(function(u){return'<div style="padding:6px 10px;background:rgba(245,166,35,0.06);border-radius:6px;margin-bottom:4px;font-size:13px;">'+u.name+' \u2014 '+u.clinic+'</div>';}).join('');
+    html+='</div>';
+  }
+  if(!readBy.length&&!unread.length)html+='<p style="color:var(--muted);font-size:13px;">No nurse accounts found.</p>';
+  // Show in a simple modal-like overlay
+  var overlay=document.getElementById('receiptsOverlay');
+  if(!overlay){
+    overlay=document.createElement('div');
+    overlay.id='receiptsOverlay';
+    overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:600;display:flex;align-items:center;justify-content:center;';
+    overlay.onclick=function(e){if(e.target===overlay)overlay.remove();};
+    document.getElementById('appShell').appendChild(overlay);
+  }
+  overlay.innerHTML='<div style="background:white;border-radius:12px;padding:24px;width:min(460px,92vw);max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">'
+    +html
+    +'<div style="text-align:right;margin-top:16px;"><button class="btn btn-primary btn-sm" onclick="document.getElementById(\'receiptsOverlay\').remove()">Close</button></div>'
+    +'</div>';
+  overlay.style.display='flex';
+}
+
+// ── DELETE ──
+function deleteSharedDoc(docId){
+  if(!confirm('Delete this shared document? All nurses will lose access to it.'))return;
+  saveSharedDocs(getSharedDocs().filter(function(d){return d.id!==docId;}));
+  // Clean up read receipts for this doc
+  var receipts=getReadReceipts();delete receipts[docId];
+  saveReadReceipts(receipts);
+  renderSharedDocs(false);showToast('Document deleted');
+}
+function deleteNurseDoc(nurseId,docId){
+  if(!confirm('Delete this file from the nurse profile?'))return;
+  saveNurseDocs(nurseId,getNurseDocs(nurseId).filter(function(d){return d.id!==docId;}));
+  renderNurseDocsList(nurseId, document.getElementById('nurseDocsList'));
+  showToast('File deleted');
+}
+
+
+// ============================================================
+// BACKUP
+// ============================================================
+function exportJSON(){
+  var payload={
+    records: getAllRecords(),
+    users: getUsers(),
+    settings: getSettings(),
+    pending: getPending(),
+    suppliers: getSuppliers(),
+    sharedDocs: getSharedDocs(),
+    nurseDocs: _cache.nurseDocs && Object.keys(_cache.nurseDocs).length ? _cache.nurseDocs : (JSON.parse(localStorage.getItem('rxaudit_nurse_docs')||'{}')),
+    docsRead: getReadReceipts(),
+    exported: new Date().toISOString()
+  };
+  var blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='rxaudit_backup_'+new Date().toISOString().split('T')[0]+'.json';a.click();
+  showToast('✓ Backup exported');
+}
+function importJSON(input){
+  if(!input.files||!input.files[0])return;
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var p=JSON.parse(e.target.result);
+      if(p.records){
+        _cache.records=p.records;
+        localStorage.setItem('rxaudit_records',JSON.stringify(p.records));
+        _pushToFirebase('records', p.records);
+      }
+      if(p.users) saveUsers(p.users);
+      if(p.settings) saveSettingsObj(p.settings);
+      if(p.pending) savePending(p.pending);
+      if(p.suppliers) saveSuppliers(p.suppliers);
+      if(p.sharedDocs) saveSharedDocs(p.sharedDocs);
+      if(p.nurseDocs){
+        Object.keys(p.nurseDocs).forEach(function(nurseId){
+          saveNurseDocs(nurseId, p.nurseDocs[nurseId]);
+        });
+      }
+      if(p.docsRead) saveReadReceipts(p.docsRead);
+      initApp();
+      showToast('✓ Backup restored');
+    }catch(err){showToast('Invalid backup file');}
+  };
+  reader.readAsText(input.files[0]);input.value='';
+}
+
+// ============================================================
+// REAL-TIME SYNC — Firestore onSnapshot listeners
+// ============================================================
+var _listenersAttached = false;
+
+// Map of "data" collection doc id -> {cacheKey, lsKey, field}
+var _DATA_DOC_MAP = {
+  records:       {cacheKey:'records',       lsKey:'rxaudit_records',     field:'list'},
+  users:         {cacheKey:'users',         lsKey:'rxaudit_users',       field:'list'},
+  settings:      {cacheKey:'settings',      lsKey:'rxaudit_settings',    field:'obj'},
+  pending:       {cacheKey:'pending',       lsKey:'rxaudit_pending',     field:'list'},
+  suppliers:     {cacheKey:'suppliers',     lsKey:'rxaudit_suppliers',   field:'list'},
+  sharedDocs:    {cacheKey:'sharedDocs',    lsKey:'rxaudit_shared_docs', field:'list'},
+  readReceipts:  {cacheKey:'readReceipts',  lsKey:'rxaudit_docs_read',   field:'obj'},
+  notifications: {cacheKey:'notifications', lsKey:'rxaudit_docs_notify', field:'obj'}
+};
+
+function _refreshUI(){
+  if(!currentUser) return;
+  try{ initApp(); }catch(e){ console.warn('initApp refresh failed:', e); }
+  try{ if(typeof renderDocumentsPage==='function'){
+    var docsPage=document.getElementById('page-documents');
+    if(docsPage && docsPage.classList.contains('active')) renderDocumentsPage();
+  } }catch(e){ console.warn('renderDocumentsPage refresh failed:', e); }
+}
+
+function _attachRealtimeListeners(){
+  if(_listenersAttached) return;
+  if(!_fbReady || !_db){ console.warn('Realtime sync skipped: Firebase not ready'); return; }
+  _listenersAttached = true;
+
+  try{
+    _db.collection('data').onSnapshot(function(snap){
+      snap.docChanges().forEach(function(change){
+        var id = change.doc.id;
+        var map = _DATA_DOC_MAP[id];
+        if(!map) return;
+        var data = change.doc.data();
+        var incoming = data[map.field];
+        if(incoming === undefined) return;
+        var current = _cache[map.cacheKey];
+        if(JSON.stringify(current) === JSON.stringify(incoming)) return; // no change
+        _cache[map.cacheKey] = incoming;
+        try{ localStorage.setItem(map.lsKey, JSON.stringify(incoming)); }catch(e){}
+        _refreshUI();
+      });
+    }, function(err){ console.warn('onSnapshot data error:', err); });
+  }catch(e){ console.warn('Failed to attach data listener:', e); }
+
+  try{
+    _db.collection('nurseDocs').onSnapshot(function(snap){
+      var changed = false;
+      snap.docChanges().forEach(function(change){
+        var nid = change.doc.id;
+        var incoming = change.doc.data().list || [];
+        if(JSON.stringify(_cache.nurseDocs[nid]) === JSON.stringify(incoming)) return;
+        _cache.nurseDocs[nid] = incoming;
+        try{
+          var all = JSON.parse(localStorage.getItem('rxaudit_nurse_docs')||'{}');
+          all[nid] = incoming;
+          localStorage.setItem('rxaudit_nurse_docs', JSON.stringify(all));
+        }catch(e){}
+        changed = true;
+      });
+      if(changed) _refreshUI();
+    }, function(err){ console.warn('onSnapshot nurseDocs error:', err); });
+  }catch(e){ console.warn('Failed to attach nurseDocs listener:', e); }
+
+  try{
+    _db.collection('drugLists').onSnapshot(function(snap){
+      var changed = false;
+      snap.docChanges().forEach(function(change){
+        var ckey = change.doc.id;
+        var incoming = change.doc.data().list || [];
+        if(JSON.stringify(_cache.drugLists[ckey]) === JSON.stringify(incoming)) return;
+        _cache.drugLists[ckey] = incoming;
+        try{ localStorage.setItem('rxaudit_drugs_'+ckey, JSON.stringify(incoming)); }catch(e){}
+        changed = true;
+      });
+      if(changed) _refreshUI();
+    }, function(err){ console.warn('onSnapshot drugLists error:', err); });
+  }catch(e){ console.warn('Failed to attach drugLists listener:', e); }
+}
+
+// ============================================================
+// PAGE LOAD — init Firebase & load cloud cache before login
+// ============================================================
+document.addEventListener('DOMContentLoaded', function(){
+  var loginBtn = document.getElementById('loginBtn');
+  var loadingEl = document.getElementById('loginLoading');
+  if(loginBtn) loginBtn.disabled = true;
+  if(loadingEl) loadingEl.style.display = 'block';
+
+  function done(){
+    if(loginBtn) loginBtn.disabled = false;
+    if(loadingEl) loadingEl.style.display = 'none';
+  }
+
+  try{
+    _initFirebase();
+    _loadCacheFromFirebase(function(){
+      _seedFirebaseIfEmpty();
+      done();
+    });
+  }catch(e){
+    console.warn('Firebase init/load failed, continuing offline:', e);
+    done();
+  }
+});
+
+// One-time migration: if Firestore has no 'users' doc yet but this device
+// has existing localStorage data, push it up so other devices can see it.
+function _seedFirebaseIfEmpty(){
+  if(!_fbReady || _cache.users !== null) return;
+  try{
+    var lsUsers=JSON.parse(localStorage.getItem('rxaudit_users'));
+    if(!lsUsers || !lsUsers.length) return; // nothing local to seed either
+    console.log('Seeding Firestore from local data (first run)...');
+    _pushToFirebase('records', JSON.parse(localStorage.getItem('rxaudit_records')||'[]'));
+    _pushToFirebase('users', lsUsers);
+    _pushToFirebase('settings', JSON.parse(localStorage.getItem('rxaudit_settings')||'{}'));
+    _pushToFirebase('pending', JSON.parse(localStorage.getItem('rxaudit_pending')||'[]'));
+    _pushToFirebase('suppliers', JSON.parse(localStorage.getItem('rxaudit_suppliers')||'[]'));
+    _pushToFirebase('sharedDocs', JSON.parse(localStorage.getItem('rxaudit_shared_docs')||'[]'));
+    _pushToFirebase('readReceipts', JSON.parse(localStorage.getItem('rxaudit_docs_read')||'{}'));
+    _pushToFirebase('notifications', JSON.parse(localStorage.getItem('rxaudit_docs_notify')||'{}'));
+    var nurseDocs=JSON.parse(localStorage.getItem('rxaudit_nurse_docs')||'{}');
+    Object.keys(nurseDocs).forEach(function(nid){
+      _pushToFirebase('nurseDocs', {nurseId:nid, list:nurseDocs[nid]});
+    });
+    Object.keys(localStorage).forEach(function(lsKey){
+      var m=lsKey.match(/^rxaudit_drugs_(.+)$/);
+      if(m){
+        try{
+          var list=JSON.parse(localStorage.getItem(lsKey));
+          _pushToFirebase('drugLists', {clinicKey:m[1], list:list});
+        }catch(e){}
+      }
+    });
+  }catch(e){ console.warn('Seed error:', e); }
+}
+</script>
+</body>
+</html>
