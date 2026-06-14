@@ -1321,11 +1321,26 @@ function getRecords(){
   return all;
 }
 function saveRecord(rec){
+  rec.id=Date.now();
   var r=getAllRecords();
-  rec.id=Date.now(); r.unshift(rec);
+  r=[rec].concat(r);
   _cache.records=r;
   localStorage.setItem('rxaudit_records',JSON.stringify(r));
-  _pushToFirebase('records', r);
+  if(!_fbReady || !_db){ return; }
+  // Use a transaction so concurrent submissions from other devices
+  // are merged in rather than overwritten by a stale local list.
+  var ref=_db.collection('data').doc('records');
+  _db.runTransaction(function(tx){
+    return tx.get(ref).then(function(doc){
+      var list=doc.exists?(doc.data().list||[]):[];
+      if(!list.some(function(x){return x.id===rec.id;})) list=[rec].concat(list);
+      tx.set(ref,{list:list});
+      return list;
+    });
+  }).then(function(list){
+    _cache.records=list;
+    localStorage.setItem('rxaudit_records',JSON.stringify(list));
+  }).catch(function(e){ console.warn('FB push records:', e); });
 }
 
 // ── PENDING ──
