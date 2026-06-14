@@ -1647,6 +1647,23 @@ function _nursesForClinic(clinic){
   return getUsers().filter(function(u){return u.role==='nurse'&&u.active!==false&&u.clinic===clinic;});
 }
 
+// Dashboard tile summary of S4 key status for a nurse/clinic
+function _clinicKeyStatusLine(nurse, clinic){
+  if(typeof nurse.id !== 'number') return ''; // unassigned-clinic placeholder, no agreement to check
+  if(!getActiveKeyAgreement(nurse.id)){
+    return '<div style="color:var(--red);font-size:11px;font-weight:600;margin-top:4px;">🔑 Key agreement not signed</div>';
+  }
+  var keys=getKeyRegister().filter(function(k){return k.clinic===clinic;});
+  if(!keys.length) return '';
+  if(keys.some(function(k){return k.status==='missing';})){
+    return '<div style="color:var(--red);font-size:11px;font-weight:600;margin-top:4px;">🔑 Key reported missing</div>';
+  }
+  if(keys.some(function(k){return k.status==='pending';})){
+    return '<div style="color:#b7791f;font-size:11px;margin-top:4px;">🔑 Key transfer pending</div>';
+  }
+  return '<div style="color:var(--green);font-size:11px;font-weight:600;margin-top:4px;">🔑 Keys: All accounted for ✓</div>';
+}
+
 function renderMyClinicKeys(){
   var card=document.getElementById('myClinicKeysCard');
   var el=document.getElementById('myClinicKeysTable');
@@ -2372,7 +2389,7 @@ function renderDashboard(){
       +'<div style="font-size:11px;color:var(--teal);margin-bottom:4px;">\ud83c\udfe5 '+clinic+'</div>'
       +'<div class="clinic-status"><span class="dot '+(done?'green':'amber')+'"></span>'
       +'<span style="color:'+(done?'var(--green)':'#b7791f')+';font-size:11px;font-weight:600;">'+(done?'Complete':'Pending')+'</span>'
-      +'</div>'+extra+'</div>';
+      +'</div>'+extra+_clinicKeyStatusLine(nurse,clinic)+'</div>';
   }).join('');
 
   var recent=records.slice(0,6);
@@ -3392,6 +3409,15 @@ function exportPDF(reportType){
     var krRows=getKeyRegister();
     if(rptClinic)krRows=krRows.filter(function(k){return k.clinic===rptClinic;});
     addSection('LIVE KEY REGISTER',krRows,[{header:'Clinic',get:function(r){return r.clinic;}},{header:'Key',get:function(r){return r.label;}},{header:'Status',get:function(r){return r.status;}},{header:'Current Holder',get:function(r){return r.holderName||'—';}}]);
+
+    var khRows=[];
+    krRows.forEach(function(k){
+      (k.history||[]).forEach(function(h){
+        khRows.push({date:h.date,clinic:k.clinic,key:k.label,action:h.action,from:h.fromName,to:h.toName,by:h.by});
+      });
+    });
+    khRows.sort(function(a,b){return new Date(a.date)-new Date(b.date);});
+    addSection('KEY CUSTODY HISTORY LOG',khRows,[{header:'Date',get:function(r){return new Date(r.date).toLocaleString();}},{header:'Clinic',get:function(r){return r.clinic;}},{header:'Key',get:function(r){return r.key;}},{header:'Action',get:function(r){return r.action;}},{header:'From',get:function(r){return r.from;}},{header:'To',get:function(r){return r.to;}},{header:'Recorded By',get:function(r){return r.by;}}]);
 
     var kiRows=getKeyIncidents();
     if(rptClinic)kiRows=kiRows.filter(function(i){return i.clinic===rptClinic;});
