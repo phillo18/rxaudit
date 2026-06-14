@@ -4001,9 +4001,9 @@ function exportPDF(reportType){
   doc.setFont('helvetica','bold');doc.setFontSize(13);doc.text(titles[reportType]||'Report',14,y);y+=6;
   doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(100,100,100);
   doc.text('Clinic: '+clinicStr+'   Period: '+periodStr,14,y);doc.setTextColor(0,0,0);y+=8;
-  function addSection(title,data,cols){
+  function addSection(title,data,cols,forceNewPage){
     if(!data.length)return;
-    if(y>260){doc.addPage();y=20;}
+    if(forceNewPage||y>260){doc.addPage();y=20;}
     doc.setFont('helvetica','bold');doc.setFontSize(10);doc.text(title,14,y);y+=4;
     doc.autoTable({startY:y,head:[cols.map(function(c){return c.header;})],body:data.map(function(r){return cols.map(function(c){return String(c.get(r)!=null?c.get(r):'\u2014');});}),styles:{fontSize:8,cellPadding:2},headStyles:{fillColor:[15,31,61],textColor:255,fontStyle:'bold'},alternateRowStyles:{fillColor:[245,248,252]},margin:{left:14,right:14}});
     y=doc.lastAutoTable.finalY+10;
@@ -4043,11 +4043,11 @@ function exportPDF(reportType){
   if(reportType==='keys'||reportType==='all'){
     var kaRows=getKeyAgreements().filter(function(a){return a.status==='active';});
     if(rptClinic)kaRows=kaRows.filter(function(a){return a.clinic===rptClinic;});
-    addSection('S4 KEY HOLDER AGREEMENTS',kaRows,[{header:'Name',get:function(r){return r.name;}},{header:'Clinic',get:function(r){return r.clinic;}},{header:'Status',get:function(r){return r.status;}},{header:'Signed',get:function(r){return new Date(r.signedAt).toLocaleDateString();}},{header:'SOP Version',get:function(r){return r.sopVersion;}}]);
+    addSection('S4 KEY HOLDER AGREEMENTS',kaRows,[{header:'Name',get:function(r){return r.name;}},{header:'Clinic',get:function(r){return r.clinic;}},{header:'Status',get:function(r){return r.status;}},{header:'Signed',get:function(r){return new Date(r.signedAt).toLocaleDateString();}},{header:'SOP Version',get:function(r){return r.sopVersion;}}],true);
 
     var krRows=getKeyRegister();
     if(rptClinic)krRows=krRows.filter(function(k){return k.clinic===rptClinic;});
-    addSection('LIVE KEY REGISTER',krRows,[{header:'Clinic',get:function(r){return r.clinic;}},{header:'Key',get:function(r){return r.label;}},{header:'Status',get:function(r){return r.status;}},{header:'Current Holder',get:function(r){return r.holderName||'—';}}]);
+    addSection('LIVE KEY REGISTER',krRows,[{header:'Clinic',get:function(r){return r.clinic;}},{header:'Key',get:function(r){return r.label;}},{header:'Status',get:function(r){return r.status;}},{header:'Current Holder',get:function(r){return r.holderName||'—';}}],true);
 
     var khRows=[];
     krRows.forEach(function(k){
@@ -4056,16 +4056,16 @@ function exportPDF(reportType){
       });
     });
     khRows.sort(function(a,b){return new Date(a.date)-new Date(b.date);});
-    addSection('KEY CUSTODY HISTORY LOG',khRows,[{header:'Date',get:function(r){return new Date(r.date).toLocaleString();}},{header:'Clinic',get:function(r){return r.clinic;}},{header:'Key',get:function(r){return r.key;}},{header:'Action',get:function(r){return r.action;}},{header:'From',get:function(r){return r.from;}},{header:'To',get:function(r){return r.to;}},{header:'Recorded By',get:function(r){return r.by;}}]);
+    addSection('KEY CUSTODY HISTORY LOG',khRows,[{header:'Date',get:function(r){return new Date(r.date).toLocaleString();}},{header:'Clinic',get:function(r){return r.clinic;}},{header:'Key',get:function(r){return r.key;}},{header:'Action',get:function(r){return r.action;}},{header:'From',get:function(r){return r.from;}},{header:'To',get:function(r){return r.to;}},{header:'Recorded By',get:function(r){return r.by;}}],true);
 
     var kiRows=getKeyIncidents();
     if(rptClinic)kiRows=kiRows.filter(function(i){return i.clinic===rptClinic;});
-    addSection('KEY INCIDENT REGISTER',kiRows,[{header:'Date',get:function(r){return new Date(r.reportedAt).toLocaleDateString();}},{header:'Clinic',get:function(r){return r.clinic;}},{header:'Key',get:function(r){return r.keyLabel;}},{header:'Type',get:function(r){return r.type;}},{header:'Reported By',get:function(r){return r.reportedBy;}},{header:'Status',get:function(r){return r.status;}},{header:'Resolution',get:function(r){return r.resolutionNotes||'—';}}]);
+    addSection('KEY INCIDENT REGISTER',kiRows,[{header:'Date',get:function(r){return new Date(r.reportedAt).toLocaleDateString();}},{header:'Clinic',get:function(r){return r.clinic;}},{header:'Key',get:function(r){return r.keyLabel;}},{header:'Type',get:function(r){return r.type;}},{header:'Reported By',get:function(r){return r.reportedBy;}},{header:'Status',get:function(r){return r.status;}},{header:'Resolution',get:function(r){return r.resolutionNotes||'—';}}],true);
   }
   if(reportType==='onboarding'||reportType==='all'){
     var oaRows=getOnboardingAgreements().filter(function(a){return a.status==='active';});
     if(rptClinic)oaRows=oaRows.filter(function(a){return a.clinic===rptClinic;});
-    addSection('ONBOARDING AGREEMENTS',oaRows,[{header:'Name',get:function(r){return r.name;}},{header:'Clinic',get:function(r){return r.clinic;}},{header:'Agreement',get:function(r){return r.title;}},{header:'Status',get:function(r){return r.status;}},{header:'Signed',get:function(r){return new Date(r.signedAt).toLocaleString();}},{header:'Version',get:function(r){return r.version;}}]);
+    addSection('ONBOARDING AGREEMENTS',oaRows,[{header:'Name',get:function(r){return r.name;}},{header:'Clinic',get:function(r){return r.clinic;}},{header:'Agreement',get:function(r){return r.title;}},{header:'Status',get:function(r){return r.status;}},{header:'Signed',get:function(r){return new Date(r.signedAt).toLocaleString();}},{header:'Version',get:function(r){return r.version;}}],true);
   }
   var pc=doc.internal.getNumberOfPages();
   for(var pi=1;pi<=pc;pi++){doc.setPage(pi);doc.setFontSize(7);doc.setTextColor(150,150,150);doc.text('Page '+pi+' of '+pc+' \u2014 Confidential \u2014 RX\u00b7AUDIT \u2014 '+s.rdpName,14,290);}
