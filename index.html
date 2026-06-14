@@ -42,6 +42,9 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .header-right{display:flex;align-items:center;gap:8px;}
 .badge{background:var(--teal);color:var(--navy);font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:0.05em;text-transform:uppercase;}
 .badge.amber{background:var(--amber);}
+.badge.green{background:var(--green);color:white;}
+.badge.red{background:var(--red);color:white;}
+.badge.grey{background:#cbd5e0;color:var(--navy);}
 .user-chip{display:flex;align-items:center;gap:7px;background:rgba(255,255,255,0.08);border-radius:20px;padding:4px 12px 4px 6px;}
 .user-avatar{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;}
 .avatar-rdp{background:var(--teal);color:var(--navy);}
@@ -276,6 +279,7 @@ textarea:focus{border-color:var(--teal);}
       <div class="nav-item" data-page="log" onclick="showPage('log')"><span class="nav-icon">📋</span> Audit Log</div>
       <div class="nav-item" data-page="reports" onclick="showPage('reports')"><span class="nav-icon">🖨️</span> Print Reports</div>
       <div class="nav-item" data-page="documents" onclick="showPage('documents')"><span class="nav-icon">📁</span> Documents</div>
+      <div class="nav-item" data-page="keys" onclick="showPage('keys')"><span class="nav-icon">🔑</span> Key Register</div>
     </div>
     <div class="sidebar-section hidden" id="adminNav">
       <div class="sidebar-label">Admin Only</div>
@@ -291,6 +295,7 @@ textarea:focus{border-color:var(--teal);}
       <div class="nav-item" data-page="log" onclick="showPage('log')"><span class="nav-icon">📋</span>Log</div>
       <div class="nav-item" data-page="documents" onclick="showPage('documents')"><span class="nav-icon">📁</span>Docs</div>
       <div class="nav-item" data-page="reports" onclick="showPage('reports')"><span class="nav-icon">🖨️</span>Reports</div>
+      <div class="nav-item" data-page="keys" onclick="showPage('keys')"><span class="nav-icon">🔑</span>Keys</div>
       <div class="nav-item hidden" id="mobileAdminBtn" data-page="users" onclick="showPage('users')"><span class="nav-icon">👥</span>Admin</div>
       <div class="nav-item hidden" id="mobileSettingsBtn" data-page="settings" onclick="showPage('settings')"><span class="nav-icon">⚙️</span>Settings</div>
     </div>
@@ -646,6 +651,38 @@ textarea:focus{border-color:var(--teal);}
       </div>
     </div>
 
+    <!-- S4 KEY HOLDER REGISTER -->
+    <div class="page" id="page-keys">
+      <div class="page-header">
+        <div><div class="page-title">S4 Key Holder Register</div><div class="page-sub">Drug safe key holder authorisations &amp; agreements</div></div>
+        <button class="btn btn-ghost" onclick="showPage('dashboard')">← Back</button>
+      </div>
+
+      <!-- My authorisation status -->
+      <div class="card" id="myKeyAuthCard"></div>
+
+      <!-- Signing form — shown when no active agreement is on file -->
+      <div class="card hidden" id="keyAgreementFormCard">
+        <div class="card-title" style="margin-bottom:10px;">S4 Drug Safe Key Holder Agreement</div>
+        <div class="alert-box info"><span>🔑</span><div>As a holder of S4 drug safe keys, you are personally responsible for their security and use in accordance with the Medicines and Poisons Act 2019 (Qld) and this clinic's S4 Medicines Management SOP. Please read and tick each item below.</div></div>
+        <div class="checklist" id="keyAgreementChecklist"></div>
+        <div style="margin-top:16px;padding:14px;background:var(--bg);border-radius:8px;">
+          <p style="font-size:13px;margin-bottom:12px;"><strong>Electronic Declaration:</strong> I declare that I have read and understood this agreement and agree to comply with all clinic policies relating to Schedule 4 medicines.</p>
+          <div class="form-row">
+            <div class="field"><label>Type your full name to sign</label><input type="text" id="keyAgreeName" placeholder="Full legal name"></div>
+            <div class="field"><label>Enter your PIN to confirm</label><input type="password" id="keyAgreePin" maxlength="8" placeholder="Your login PIN" autocomplete="off"></div>
+          </div>
+          <button class="btn btn-primary" onclick="signKeyAgreement()">🔑 Sign and Accept</button>
+        </div>
+      </div>
+
+      <!-- Admin: register of all key holders -->
+      <div class="card hidden" id="keyRegisterAdminCard">
+        <div class="card-title" style="margin-bottom:14px;">All Key Holder Authorisations</div>
+        <div id="keyRegisterTable"></div>
+      </div>
+    </div>
+
     <!-- AUDIT LOG -->
     <div class="page" id="page-log">
       <div class="page-header">
@@ -683,6 +720,7 @@ textarea:focus{border-color:var(--teal);}
       <div class="print-option"><div class="print-option-info"><h4>⚠️ Variance &amp; Discrepancy Report</h4><p>All variances with written explanations.</p></div><button class="btn btn-navy" onclick="exportPDF('variance')">Download PDF</button></div>
       <div class="print-option"><div class="print-option-info"><h4>✅ Compliance Check History</h4><p>Evidence of ongoing compliance monitoring.</p></div><button class="btn btn-navy" onclick="exportPDF('compliance')">Download PDF</button></div>
       <div class="print-option"><div class="print-option-info"><h4>🗓️ Audit Meeting Minutes</h4><p>Monthly compliance meeting records.</p></div><button class="btn btn-navy" onclick="exportPDF('meetings')">Download PDF</button></div>
+      <div class="print-option"><div class="print-option-info"><h4>🔑 S4 Key Holder Agreements</h4><p>Signed key holder authorisations and declarations.</p></div><button class="btn btn-navy" onclick="exportPDF('keys')">Download PDF</button></div>
       <div class="print-option"><div class="print-option-info"><h4>📊 Full Audit Package</h4><p>Everything in one PDF — submit to QLD Health.</p></div><button class="btn btn-primary" onclick="exportPDF('all')">Download Full PDF</button></div>
     </div>
 
@@ -764,6 +802,17 @@ textarea:focus{border-color:var(--teal);}
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeSupplierModal()">Cancel</button>
       <button class="btn btn-primary" onclick="saveSupplier()">Save supplier</button>
+    </div>
+  </div>
+</div>
+
+<!-- KEY AGREEMENT VIEW MODAL (admin) -->
+<div class="modal-overlay" id="keyAgreementModal">
+  <div class="modal" style="width:min(600px,96vw);max-height:92vh;overflow:auto;">
+    <div class="modal-title">Signed Key Holder Agreement</div>
+    <div id="keyAgreementDetail" style="font-size:13px;line-height:1.7;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeKeyAgreementModal()">Close</button>
     </div>
   </div>
 </div>
@@ -882,7 +931,8 @@ var _cache = {
   nurseDocs: {},
   readReceipts: null,
   notifications: null,
-  drugLists: {}
+  drugLists: {},
+  keyAgreements: null
 };
 
 // Load ALL data from Firebase into cache (called on login)
@@ -912,6 +962,9 @@ function _loadCacheFromFirebase(onDone){
     }),
     _db.collection('data').doc('notifications').get().then(function(d){
       if(d.exists) _cache.notifications = d.data().obj || {};
+    }),
+    _db.collection('data').doc('keyAgreements').get().then(function(d){
+      if(d.exists) _cache.keyAgreements = d.data().list || [];
     })
   ];
   Promise.all(promises).then(function(){
@@ -954,7 +1007,8 @@ function _pushToFirebase(key, data){
     suppliers:    {list: data},
     sharedDocs:   {list: data},
     readReceipts: {obj: data},
-    notifications:{obj: data}
+    notifications:{obj: data},
+    keyAgreements:{list: data}
   };
   _db.collection('data').doc(key)
     .set(payloads[key] || {value: data})
@@ -1265,6 +1319,167 @@ function saveKnownDrugsForClinic(clinic, drugs){
   _pushToFirebase('drugLists',{clinicKey:clinicKey,list:drugs});
 }
 
+// ── S4 KEY HOLDER AGREEMENTS ──
+var KEY_SOP_VERSION = 'Key SOP v1.0';
+var KEY_AGREEMENT_ITEMS = [
+  'I will keep S4 drug safe keys on my person or in a secure location at all times while in my custody, and will never leave them unattended or accessible to patients or unauthorised persons.',
+  'I will not duplicate, copy, or create additional copies of any S4 drug safe key.',
+  'I will document any transfer of custody of a key to another authorised staff member via the clinic’s key register.',
+  'I will immediately report any lost, stolen, or misplaced S4 drug safe key to the Responsible Person/RDP, regardless of the circumstances.',
+  'I have read and understood the clinic’s S4 Medicines Management Standard Operating Procedure (' + KEY_SOP_VERSION + ').',
+  'I understand my responsibilities as a holder of Schedule 4 medicine keys under the Medicines and Poisons Act 2019 (Qld), and the consequences of a breach of this agreement.'
+];
+
+function getKeyAgreements(){
+  if(_cache.keyAgreements !== null) return _cache.keyAgreements;
+  try{ var k=JSON.parse(localStorage.getItem('rxaudit_key_agreements'));
+    if(k){ _cache.keyAgreements=k; return k; } }catch(e){}
+  _cache.keyAgreements=[]; return [];
+}
+function saveKeyAgreements(list){
+  _cache.keyAgreements=list;
+  localStorage.setItem('rxaudit_key_agreements',JSON.stringify(list));
+  _pushToFirebase('keyAgreements', list);
+}
+function getActiveKeyAgreement(userId){
+  var list=getKeyAgreements();
+  for(var i=0;i<list.length;i++){
+    if(list[i].userId===userId && list[i].status==='active') return list[i];
+  }
+  return null;
+}
+
+function renderKeyPage(){
+  var myCard=document.getElementById('myKeyAuthCard');
+  var formCard=document.getElementById('keyAgreementFormCard');
+  var adminCard=document.getElementById('keyRegisterAdminCard');
+  var active=getActiveKeyAgreement(currentUser.id);
+
+  if(myCard){
+    if(active){
+      myCard.innerHTML='<div class="card-title" style="margin-bottom:10px;">My Key Holder Authorisation</div>'
+        +'<div class="alert-box info"><span>✅</span><div>'
+        +'<strong>Status: <span class="badge green">Active</span></strong><br>'
+        +'Signed by '+active.name+' on '+new Date(active.signedAt).toLocaleString()+'<br>'
+        +'Agreement version: '+active.sopVersion
+        +'</div></div>';
+    } else {
+      myCard.innerHTML='<div class="card-title" style="margin-bottom:10px;">My Key Holder Authorisation</div>'
+        +'<div class="alert-box warn"><span>⚠️</span><div>'
+        +'<strong>Status: <span class="badge red">Not signed</span></strong><br>'
+        +'You must read and sign the S4 Drug Safe Key Holder Agreement below before you can be issued a clinic key.'
+        +'</div></div>';
+    }
+  }
+
+  if(formCard){
+    if(active){
+      formCard.classList.add('hidden');
+    } else {
+      formCard.classList.remove('hidden');
+      renderKeyAgreementChecklist();
+    }
+  }
+
+  if(adminCard){
+    if(isAdmin()){
+      adminCard.classList.remove('hidden');
+      renderKeyRegisterAdmin();
+    } else {
+      adminCard.classList.add('hidden');
+    }
+  }
+}
+
+function renderKeyAgreementChecklist(){
+  var el=document.getElementById('keyAgreementChecklist');
+  if(!el)return;
+  el.innerHTML=KEY_AGREEMENT_ITEMS.map(function(item,i){
+    return '<label class="check-item" onclick="toggleCheck(this)"><input type="checkbox" id="keyChk'+i+'">'
+      +'<span class="check-label">'+item+'</span>'
+      +'<span class="check-req mandatory">Mandatory</span></label>';
+  }).join('');
+}
+
+function signKeyAgreement(){
+  for(var i=0;i<KEY_AGREEMENT_ITEMS.length;i++){
+    var chk=document.getElementById('keyChk'+i);
+    if(!chk||!chk.checked){ showToast('Please tick all conditions before signing'); return; }
+  }
+  var name=(document.getElementById('keyAgreeName').value||'').trim();
+  var pin=(document.getElementById('keyAgreePin').value||'').trim();
+  if(!name){ showToast('Please type your full name to sign'); return; }
+  if(name.toLowerCase()!==String(currentUser.name||'').toLowerCase()){ showToast('Name must match your account name'); return; }
+  if(pin!==String(currentUser.pin||'')){ showToast('Incorrect PIN'); return; }
+
+  var list=getKeyAgreements();
+  list.forEach(function(a){
+    if(a.userId===currentUser.id && a.status==='active') a.status='superseded';
+  });
+  list.push({
+    id:Date.now(),
+    userId:currentUser.id,
+    name:currentUser.name,
+    clinic:currentUser.clinic||'',
+    sopVersion:KEY_SOP_VERSION,
+    items:KEY_AGREEMENT_ITEMS.slice(),
+    signedAt:new Date().toISOString(),
+    status:'active'
+  });
+  saveKeyAgreements(list);
+  document.getElementById('keyAgreeName').value='';
+  document.getElementById('keyAgreePin').value='';
+  showToast('Key Holder Agreement signed');
+  renderKeyPage();
+}
+
+function renderKeyRegisterAdmin(){
+  var el=document.getElementById('keyRegisterTable');
+  if(!el)return;
+  var nurses=getUsers().filter(function(u){return u.active!==false && u.role!=='admin' && u.role!=='rdp';});
+  var rows=nurses.map(function(u){
+    var active=getActiveKeyAgreement(u.id);
+    var statusBadge=active
+      ? '<span class="badge green">Signed '+new Date(active.signedAt).toLocaleDateString()+'</span>'
+      : '<span class="badge red">Not signed</span>';
+    var actionBtn=active
+      ? '<button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;" onclick="viewKeyAgreement('+active.id+')">View</button>'
+        +' <button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;" onclick="revokeKeyAgreement('+active.id+')">Revoke</button>'
+      : '';
+    return '<tr><td>'+u.name+'</td><td>'+(u.clinic||'')+'</td><td>'+statusBadge+'</td><td>'+actionBtn+'</td></tr>';
+  }).join('');
+  el.innerHTML='<table class="table"><thead><tr><th>Nurse</th><th>Clinic</th><th>Agreement Status</th><th>Actions</th></tr></thead><tbody>'
+    +(rows||'<tr><td colspan="4" style="text-align:center;color:var(--muted);">No nurses found</td></tr>')+'</tbody></table>';
+}
+
+function viewKeyAgreement(id){
+  var list=getKeyAgreements();
+  var a=list.find(function(x){return x.id===id;});
+  if(!a)return;
+  var el=document.getElementById('keyAgreementDetail');
+  el.innerHTML='<p><strong>Name:</strong> '+a.name+'</p>'
+    +'<p><strong>Clinic:</strong> '+(a.clinic||'')+'</p>'
+    +'<p><strong>Status:</strong> '+a.status+'</p>'
+    +'<p><strong>SOP Version:</strong> '+a.sopVersion+'</p>'
+    +'<p><strong>Signed:</strong> '+new Date(a.signedAt).toLocaleString()+'</p>'
+    +'<p><strong>Agreement items:</strong></p>'
+    +'<ul>'+a.items.map(function(i){return '<li>'+i+'</li>';}).join('')+'</ul>';
+  document.getElementById('keyAgreementModal').classList.add('open');
+}
+function closeKeyAgreementModal(){
+  document.getElementById('keyAgreementModal').classList.remove('open');
+}
+function revokeKeyAgreement(id){
+  if(!confirm('Revoke this Key Holder Agreement? The nurse will need to re-sign before holding a key.'))return;
+  var list=getKeyAgreements();
+  var a=list.find(function(x){return x.id===id;});
+  if(!a)return;
+  a.status='revoked';
+  saveKeyAgreements(list);
+  renderKeyPage();
+  showToast('Agreement revoked');
+}
+
 // ── VISIBLE CLINICS ──
 function visibleClinics(){
   var s=getSettings();
@@ -1499,6 +1714,7 @@ function showPage(id){
   if(id==='delivery'){refreshDeliveryDrugDropdowns();fillSupplierSelect();}
   if(id==='meeting'){buildMeetingAttendees();buildMeetingAgenda();buildMeetingActions();refreshMeetingSignoff();checkMonthlyReminder();}
   if(id==='documents')renderDocumentsPage();
+  if(id==='keys')renderKeyPage();
   window.scrollTo(0,0);
 }
 
@@ -2587,7 +2803,7 @@ function exportPDF(reportType){
   doc.text('Generated: '+now+'  |  RDP: '+s.rdpName+'  |  AHPRA: '+s.rdpAhpra,14,26);
   doc.setTextColor(0,0,0);
   var y=36;
-  var titles={register:'Drug Register \u2014 Full Audit Report',delivery:'Stock Delivery Log',variance:'Variance & Discrepancy Report',compliance:'Compliance Check History',meetings:'Audit Meeting Minutes',all:'Full Audit Package'};
+  var titles={register:'Drug Register \u2014 Full Audit Report',delivery:'Stock Delivery Log',variance:'Variance & Discrepancy Report',compliance:'Compliance Check History',meetings:'Audit Meeting Minutes',keys:'S4 Key Holder Agreements',all:'Full Audit Package'};
   doc.setFont('helvetica','bold');doc.setFontSize(13);doc.text(titles[reportType]||'Report',14,y);y+=6;
   doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(100,100,100);
   doc.text('Clinic: '+clinicStr+'   Period: '+periodStr,14,y);doc.setTextColor(0,0,0);y+=8;
@@ -2627,6 +2843,11 @@ function exportPDF(reportType){
         renderMeetingToPDF(doc,m,s,y,pageW,marginL,marginR,contentW);
       });
     }
+  }
+  if(reportType==='keys'||reportType==='all'){
+    var kaRows=getKeyAgreements().filter(function(a){return a.status==='active';});
+    if(rptClinic)kaRows=kaRows.filter(function(a){return a.clinic===rptClinic;});
+    addSection('S4 KEY HOLDER AGREEMENTS',kaRows,[{header:'Name',get:function(r){return r.name;}},{header:'Clinic',get:function(r){return r.clinic;}},{header:'Status',get:function(r){return r.status;}},{header:'Signed',get:function(r){return new Date(r.signedAt).toLocaleDateString();}},{header:'SOP Version',get:function(r){return r.sopVersion;}}]);
   }
   var pc=doc.internal.getNumberOfPages();
   for(var pi=1;pi<=pc;pi++){doc.setPage(pi);doc.setFontSize(7);doc.setTextColor(150,150,150);doc.text('Page '+pi+' of '+pc+' \u2014 Confidential \u2014 RX\u00b7AUDIT \u2014 '+s.rdpName,14,290);}
@@ -3168,7 +3389,8 @@ var _DATA_DOC_MAP = {
   suppliers:     {cacheKey:'suppliers',     lsKey:'rxaudit_suppliers',   field:'list'},
   sharedDocs:    {cacheKey:'sharedDocs',    lsKey:'rxaudit_shared_docs', field:'list'},
   readReceipts:  {cacheKey:'readReceipts',  lsKey:'rxaudit_docs_read',   field:'obj'},
-  notifications: {cacheKey:'notifications', lsKey:'rxaudit_docs_notify', field:'obj'}
+  notifications: {cacheKey:'notifications', lsKey:'rxaudit_docs_notify', field:'obj'},
+  keyAgreements: {cacheKey:'keyAgreements', lsKey:'rxaudit_key_agreements', field:'list'}
 };
 
 function _refreshUI(){
@@ -3178,6 +3400,10 @@ function _refreshUI(){
     var docsPage=document.getElementById('page-documents');
     if(docsPage && docsPage.classList.contains('active')) renderDocumentsPage();
   } }catch(e){ console.warn('renderDocumentsPage refresh failed:', e); }
+  try{ if(typeof renderKeyPage==='function'){
+    var keysPage=document.getElementById('page-keys');
+    if(keysPage && keysPage.classList.contains('active')) renderKeyPage();
+  } }catch(e){ console.warn('renderKeyPage refresh failed:', e); }
 }
 
 function _attachRealtimeListeners(){
