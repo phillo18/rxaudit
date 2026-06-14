@@ -3993,8 +3993,8 @@ function exportPDF(reportType){
   }
   if(reportType==='register'||reportType==='all'){
     var stRows=[];
-    records.filter(function(r){return r.type==='Stocktake';}).forEach(function(r){(r.drugs||[]).forEach(function(d){stRows.push({date:r.date,clinic:r.clinic,dn:d.drug,op:d.opening,ad:d.administered,wa:d.wasted,ct:d.count,dv:d.variance,by:r.by,ahpra:r.ahpra});});});
-    addSection('STOCKTAKE REGISTER',stRows,[{header:'Date',get:function(r){return r.date;}},{header:'Clinic',get:function(r){return r.clinic;}},{header:'Drug',get:function(r){return r.dn;}},{header:'Open',get:function(r){return r.op;}},{header:'Admin',get:function(r){return r.ad;}},{header:'Waste',get:function(r){return r.wa;}},{header:'Count',get:function(r){return r.ct;}},{header:'Var',get:function(r){return r.dv;}},{header:'Nurse',get:function(r){return r.by;}},{header:'AHPRA',get:function(r){return r.ahpra;}}]);
+    records.filter(function(r){return r.type==='Stocktake';}).forEach(function(r){(r.drugs||[]).forEach(function(d){stRows.push({date:r.date,clinic:r.clinic,dn:d.drug,op:d.opening,ad:d.administered,wa:d.wasted,ct:d.count,dv:d.variance,by:r.by,note:r.patientNote});});});
+    addSection('STOCKTAKE REGISTER',stRows,[{header:'Date',get:function(r){return r.date;}},{header:'Clinic',get:function(r){return r.clinic;}},{header:'Drug',get:function(r){return r.dn;}},{header:'Open',get:function(r){return r.op;}},{header:'Admin',get:function(r){return r.ad;}},{header:'Waste',get:function(r){return r.wa;}},{header:'Count',get:function(r){return r.ct;}},{header:'Var',get:function(r){return r.dv;}},{header:'Nurse',get:function(r){return r.by;}},{header:'Patient / Notes',get:function(r){return r.note||'';}}]);
   }
   if(reportType==='delivery'||reportType==='all'){
     var dlRows=[];
@@ -4003,9 +4003,6 @@ function exportPDF(reportType){
   }
   if(reportType==='variance'||reportType==='all'){
     addSection('VARIANCE & DISCREPANCY REPORT',records.filter(function(r){return r.hasVariance;}),[{header:'Date',get:function(r){return r.date;}},{header:'Clinic',get:function(r){return r.clinic;}},{header:'By',get:function(r){return r.by;}},{header:'Explanation',get:function(r){return r.varianceNote||'No explanation provided';}},{header:'Patient / Notes',get:function(r){return r.patientNote||'';}}]);
-  }
-  if(reportType==='register'||reportType==='all'){
-    addSection('STOCKTAKE PATIENT / NOTES',records.filter(function(r){return r.type==='Stocktake'&&r.patientNote;}),[{header:'Date',get:function(r){return r.date;}},{header:'Clinic',get:function(r){return r.clinic;}},{header:'By',get:function(r){return r.by;}},{header:'Patient / Notes',get:function(r){return r.patientNote;}}]);
   }
   if(reportType==='compliance'||reportType==='all'){
     addSection('COMPLIANCE CHECK HISTORY',records.filter(function(r){return r.type==='Compliance';}),[{header:'Date',get:function(r){return r.date;}},{header:'Clinic',get:function(r){return r.clinic;}},{header:'Type',get:function(r){return r.subtype;}},{header:'By',get:function(r){return r.by;}},{header:'Result',get:function(r){return r.checksPassed+'/'+r.checksTotal+' passed';}}]);
