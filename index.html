@@ -3887,6 +3887,7 @@ function renderMeetingToPDF(doc, data, s, startY, pageW, marginL, marginR, conte
   doc.setFont('helvetica','normal');doc.setTextColor(80,80,80);
   doc.text('Retain for minimum 2 years from meeting date. Make available to Queensland Health upon request.',marginL+4,y+9.5);
   doc.text('Medicines and Poisons Act 2019 (Qld) | RDP: '+(s.rdpName||'')+' | AHPRA: '+(s.rdpAhpra||'\u2014'),marginL+4,y+12);
+  return y+18;
 }
 
 function exportMeetingPDF(savedData){
@@ -4034,8 +4035,9 @@ function exportPDF(reportType){
         // Each meeting gets its own professional PDF via exportMeetingPDF
         // For multi-meeting reports, render each inline
         if(mi>0){doc.addPage();y=20;}
-        renderMeetingToPDF(doc,m,s,y,pageW,marginL,marginR,contentW);
+        y=renderMeetingToPDF(doc,m,s,y,pageW,marginL,marginR,contentW);
       });
+      if(reportType==='all'){doc.addPage();y=20;}
     }
   }
   if(reportType==='keys'||reportType==='all'){
