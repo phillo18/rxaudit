@@ -42,9 +42,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .header-right{display:flex;align-items:center;gap:8px;}
 .badge{background:var(--teal);color:var(--navy);font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:0.05em;text-transform:uppercase;}
 .badge.amber{background:var(--amber);}
-.badge.green{background:var(--green);color:white;}
-.badge.red{background:var(--red);color:white;}
-.badge.grey{background:#cbd5e0;color:var(--navy);}
 .user-chip{display:flex;align-items:center;gap:7px;background:rgba(255,255,255,0.08);border-radius:20px;padding:4px 12px 4px 6px;}
 .user-avatar{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;}
 .avatar-rdp{background:var(--teal);color:var(--navy);}
@@ -130,6 +127,8 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .upload-label{font-size:13px;color:var(--muted);}
 .upload-label strong{color:var(--teal);}
 .table{width:100%;border-collapse:collapse;font-size:13px;}
+.table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.table-scroll .table{min-width:480px;}
 .table th{text-align:left;padding:8px 12px;background:var(--navy);color:white;font-size:10px;text-transform:uppercase;font-weight:600;}
 .table td{padding:9px 12px;border-bottom:1px solid var(--border);}
 .table tr:last-child td{border-bottom:none;}
@@ -141,6 +140,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .pill.blue{background:rgba(66,153,225,0.12);color:#2b6cb0;}
 .pill.purple{background:rgba(128,90,213,0.12);color:#6b46c1;}
 .pill.teal{background:rgba(0,184,162,0.12);color:#006d5b;}
+.pill.grey{background:#e2e8f0;color:#4a5568;}
 .alert-box{padding:12px 16px;border-radius:8px;font-size:13px;margin-bottom:16px;display:flex;align-items:flex-start;gap:10px;}
 .alert-box.info{background:rgba(0,184,162,0.08);border:1px solid rgba(0,184,162,0.25);color:#065666;}
 .alert-box.warn{background:rgba(245,166,35,0.1);border:1px solid rgba(245,166,35,0.3);color:#744210;}
@@ -684,7 +684,7 @@ textarea:focus{border-color:var(--teal);}
 
       <!-- Admin: live key register -->
       <div class="card hidden" id="keyRegisterLiveAdminCard">
-        <div class="card-title" style="margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;">
+        <div class="card-title" style="margin-bottom:14px;display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;">
           <span>🔑 Live Key Register — Who Holds What</span>
           <button class="btn btn-primary" style="padding:6px 14px;font-size:12px;" onclick="openAddKeyModal()">+ Add Key</button>
         </div>
@@ -1480,14 +1480,14 @@ function renderKeyPage(){
     if(active){
       myCard.innerHTML='<div class="card-title" style="margin-bottom:10px;">My Key Holder Authorisation</div>'
         +'<div class="alert-box info"><span>✅</span><div>'
-        +'<strong>Status: <span class="badge green">Active</span></strong><br>'
+        +'<strong>Status: <span class="pill green">Active</span></strong><br>'
         +'Signed by '+active.name+' on '+new Date(active.signedAt).toLocaleString()+'<br>'
         +'Agreement version: '+active.sopVersion
         +'</div></div>';
     } else {
       myCard.innerHTML='<div class="card-title" style="margin-bottom:10px;">My Key Holder Authorisation</div>'
         +'<div class="alert-box warn"><span>⚠️</span><div>'
-        +'<strong>Status: <span class="badge red">Not signed</span></strong><br>'
+        +'<strong>Status: <span class="pill red">Not signed</span></strong><br>'
         +'You must read and sign the S4 Drug Safe Key Holder Agreement below before you can be issued a clinic key.'
         +'</div></div>';
     }
@@ -1583,16 +1583,16 @@ function renderKeyRegisterAdmin(){
   var rows=nurses.map(function(u){
     var active=getActiveKeyAgreement(u.id);
     var statusBadge=active
-      ? '<span class="badge green">Signed '+new Date(active.signedAt).toLocaleDateString()+'</span>'
-      : '<span class="badge red">Not signed</span>';
+      ? '<span class="pill green">Signed '+new Date(active.signedAt).toLocaleDateString()+'</span>'
+      : '<span class="pill red">Not signed</span>';
     var actionBtn=active
       ? '<button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;" onclick="viewKeyAgreement('+active.id+')">View</button>'
         +' <button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;" onclick="revokeKeyAgreement('+active.id+')">Revoke</button>'
       : '';
     return '<tr><td>'+u.name+'</td><td>'+(u.clinic||'')+'</td><td>'+statusBadge+'</td><td>'+actionBtn+'</td></tr>';
   }).join('');
-  el.innerHTML='<table class="table"><thead><tr><th>Nurse</th><th>Clinic</th><th>Agreement Status</th><th>Actions</th></tr></thead><tbody>'
-    +(rows||'<tr><td colspan="4" style="text-align:center;color:var(--muted);">No nurses found</td></tr>')+'</tbody></table>';
+  el.innerHTML='<div class="table-scroll"><table class="table"><thead><tr><th>Nurse</th><th>Clinic</th><th>Agreement Status</th><th>Actions</th></tr></thead><tbody>'
+    +(rows||'<tr><td colspan="4" style="text-align:center;color:var(--muted);">No nurses found</td></tr>')+'</tbody></table></div>';
 }
 
 function viewKeyAgreement(id){
@@ -1661,25 +1661,25 @@ function renderMyClinicKeys(){
   var rows=keys.map(function(k){
     var statusBadge='', actions='';
     if(k.status==='missing'){
-      statusBadge='<span class="badge red">Missing — reported '+(k.incidentType||'lost')+'</span>';
+      statusBadge='<span class="pill red">Missing — reported '+(k.incidentType||'lost')+'</span>';
     } else if(k.status==='pending'){
-      statusBadge='<span class="badge amber">Transfer pending → '+k.pendingToName+'</span>';
+      statusBadge='<span class="pill amber">Transfer pending → '+k.pendingToName+'</span>';
       if(k.pendingToId===currentUser.id){
         actions='<button class="btn btn-primary" style="padding:4px 10px;font-size:12px;" onclick="openAcceptModal('+k.id+')">Respond</button>';
       }
     } else if(k.holderId){
-      statusBadge='<span class="badge green">With '+k.holderName+'</span>';
+      statusBadge='<span class="pill green">With '+k.holderName+'</span>';
       if(k.holderId===currentUser.id){
         actions='<button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;" onclick="openTransferModal('+k.id+')">Transfer</button>'
           +' <button class="btn btn-red" style="padding:4px 10px;font-size:12px;" onclick="openKeyIncidentModal('+k.id+')">Report Lost/Stolen</button>';
       }
     } else {
-      statusBadge='<span class="badge grey">Unassigned</span>';
+      statusBadge='<span class="pill grey">Unassigned</span>';
     }
     actions+=' <button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;" onclick="viewKeyHistory('+k.id+')">History</button>';
     return '<tr><td>'+k.label+'</td><td>'+statusBadge+'</td><td style="text-align:right;white-space:nowrap;">'+actions+'</td></tr>';
   }).join('');
-  el.innerHTML='<table class="table"><thead><tr><th>Key</th><th>Status</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>';
+  el.innerHTML='<div class="table-scroll"><table class="table"><thead><tr><th>Key</th><th>Status</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>';
 }
 
 function renderKeyRegisterLiveAdmin(){
@@ -1693,14 +1693,14 @@ function renderKeyRegisterLiveAdmin(){
   var rows=keys.slice().sort(function(a,b){return (a.clinic+a.label).localeCompare(b.clinic+b.label);}).map(function(k){
     var statusBadge, extraBtn='';
     if(k.status==='missing'){
-      statusBadge='<span class="badge red">Missing — '+(k.incidentType||'lost')+'</span>';
+      statusBadge='<span class="pill red">Missing — '+(k.incidentType||'lost')+'</span>';
     } else if(k.status==='pending'){
-      statusBadge='<span class="badge amber">'+k.holderName+' → '+k.pendingToName+' (pending)</span>';
+      statusBadge='<span class="pill amber">'+k.holderName+' → '+k.pendingToName+' (pending)</span>';
     } else if(k.holderId){
-      statusBadge='<span class="badge green">'+k.holderName+'</span>';
+      statusBadge='<span class="pill green">'+k.holderName+'</span>';
       extraBtn='<button class="btn btn-red" style="padding:4px 10px;font-size:12px;" onclick="openKeyIncidentModal('+k.id+')">Report Lost/Stolen</button> ';
     } else {
-      statusBadge='<span class="badge grey">Unassigned</span>';
+      statusBadge='<span class="pill grey">Unassigned</span>';
     }
     return '<tr><td>'+k.clinic+'</td><td>'+k.label+'</td><td>'+statusBadge+'</td>'
       +'<td style="text-align:right;white-space:nowrap;">'
@@ -1709,7 +1709,7 @@ function renderKeyRegisterLiveAdmin(){
       +'<button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;" onclick="openAddKeyModal('+k.id+')">Edit</button>'
       +'</td></tr>';
   }).join('');
-  el.innerHTML='<table class="table"><thead><tr><th>Clinic</th><th>Key</th><th>Holder</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>';
+  el.innerHTML='<div class="table-scroll"><table class="table"><thead><tr><th>Clinic</th><th>Key</th><th>Holder</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>';
 }
 
 window._keyAddEditId=null;
@@ -1960,7 +1960,7 @@ function renderKeyIncidentAdmin(){
     return;
   }
   var rows=incidents.slice().sort(function(a,b){return new Date(b.reportedAt)-new Date(a.reportedAt);}).map(function(inc){
-    var statusBadge=inc.status==='open'?'<span class="badge red">Open</span>':'<span class="badge green">Resolved</span>';
+    var statusBadge=inc.status==='open'?'<span class="pill red">Open</span>':'<span class="pill green">Resolved</span>';
     var actions=inc.status==='open'
       ?'<button class="btn btn-primary" style="padding:4px 10px;font-size:12px;" onclick="openKeyIncidentResolveModal('+inc.id+')">Resolve</button>'
       :'<span style="font-size:12px;color:var(--muted);">'+(inc.resolution==='replaced'?'Replaced':'Recovered')+' by '+inc.resolvedBy+'</span>';
@@ -1968,7 +1968,7 @@ function renderKeyIncidentAdmin(){
       +'<td style="text-transform:capitalize;">'+inc.type+'</td><td>'+inc.reportedBy+'</td><td>'+statusBadge+'</td>'
       +'<td style="text-align:right;white-space:nowrap;">'+actions+'</td></tr>';
   }).join('');
-  el.innerHTML='<table class="table"><thead><tr><th>Date</th><th>Clinic</th><th>Key</th><th>Type</th><th>Reported by</th><th>Status</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>';
+  el.innerHTML='<div class="table-scroll"><table class="table"><thead><tr><th>Date</th><th>Clinic</th><th>Key</th><th>Type</th><th>Reported by</th><th>Status</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>';
 }
 
 window._keyIncidentResolveId=null;
