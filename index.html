@@ -654,12 +654,18 @@ textarea:focus{border-color:var(--teal);}
     <!-- S4 KEY HOLDER REGISTER -->
     <div class="page" id="page-keys">
       <div class="page-header">
-        <div><div class="page-title">S4 Key Holder Register</div><div class="page-sub">Drug safe key holder authorisations &amp; agreements</div></div>
+        <div><div class="page-title">S4 Key Holder Register</div><div class="page-sub">Drug safe key custody, transfers &amp; signed agreements</div></div>
         <button class="btn btn-ghost" onclick="showPage('dashboard')">← Back</button>
       </div>
 
       <!-- My authorisation status -->
       <div class="card" id="myKeyAuthCard"></div>
+
+      <!-- My clinic's keys & custody actions -->
+      <div class="card hidden" id="myClinicKeysCard">
+        <div class="card-title" style="margin-bottom:14px;">🔑 My Clinic Keys</div>
+        <div id="myClinicKeysTable"></div>
+      </div>
 
       <!-- Signing form — shown when no active agreement is on file -->
       <div class="card hidden" id="keyAgreementFormCard">
@@ -674,6 +680,15 @@ textarea:focus{border-color:var(--teal);}
           </div>
           <button class="btn btn-primary" onclick="signKeyAgreement()">🔑 Sign and Accept</button>
         </div>
+      </div>
+
+      <!-- Admin: live key register -->
+      <div class="card hidden" id="keyRegisterLiveAdminCard">
+        <div class="card-title" style="margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;">
+          <span>🔑 Live Key Register — Who Holds What</span>
+          <button class="btn btn-primary" style="padding:6px 14px;font-size:12px;" onclick="openAddKeyModal()">+ Add Key</button>
+        </div>
+        <div id="keyRegisterLiveTable"></div>
       </div>
 
       <!-- Admin: register of all key holders -->
@@ -817,6 +832,59 @@ textarea:focus{border-color:var(--teal);}
   </div>
 </div>
 
+<!-- ADD / EDIT KEY MODAL (admin) -->
+<div class="modal-overlay" id="keyAddModal">
+  <div class="modal" style="width:min(480px,96vw);">
+    <div class="modal-title" id="keyAddModalTitle">Add Key</div>
+    <div class="field"><label>Clinic</label><select id="keyAddClinic" onchange="_refreshKeyAddHolderOptions()"></select></div>
+    <div class="field"><label>Key label / description</label><input type="text" id="keyAddLabel" placeholder="e.g. Drug safe key #1"></div>
+    <div class="field"><label>Current holder</label><select id="keyAddHolder"></select></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeAddKeyModal()">Cancel</button>
+      <button class="btn btn-red hidden" id="keyAddDeleteBtn" onclick="deleteKey()">Delete key</button>
+      <button class="btn btn-primary" onclick="saveKeyFromModal()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- TRANSFER KEY MODAL (nurse hands over custody) -->
+<div class="modal-overlay" id="keyTransferModal">
+  <div class="modal" style="width:min(480px,96vw);">
+    <div class="modal-title">Transfer Key Custody</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;" id="keyTransferLabel"></p>
+    <div class="field"><label>Hand over to</label><select id="keyTransferTo"></select></div>
+    <div class="field"><label>Enter your PIN to confirm handover</label><input type="password" id="keyTransferPin" maxlength="8" placeholder="Your login PIN" autocomplete="off"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeTransferModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmKeyTransfer()">Hand over key</button>
+    </div>
+  </div>
+</div>
+
+<!-- ACCEPT / DECLINE PENDING KEY TRANSFER MODAL -->
+<div class="modal-overlay" id="keyAcceptModal">
+  <div class="modal" style="width:min(480px,96vw);">
+    <div class="modal-title">Incoming Key Transfer</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;" id="keyAcceptLabel"></p>
+    <div class="field"><label>Enter your PIN to accept custody</label><input type="password" id="keyAcceptPin" maxlength="8" placeholder="Your login PIN" autocomplete="off"></div>
+    <div class="modal-actions">
+      <button class="btn btn-red" onclick="declineKeyTransfer()">Decline</button>
+      <button class="btn btn-primary" onclick="acceptKeyTransfer()">Accept custody</button>
+    </div>
+  </div>
+</div>
+
+<!-- KEY CUSTODY HISTORY MODAL -->
+<div class="modal-overlay" id="keyHistoryModal">
+  <div class="modal" style="width:min(560px,96vw);max-height:92vh;overflow:auto;">
+    <div class="modal-title">Key Custody History</div>
+    <div id="keyHistoryDetail" style="font-size:13px;line-height:1.8;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeKeyHistoryModal()">Close</button>
+    </div>
+  </div>
+</div>
+
 <!-- CLINIC VIEW MODAL (admin viewing clinic as nurse) -->
 <div class="modal-overlay" id="clinicViewModal" style="align-items:flex-start;padding-top:20px;">
   <div class="modal" style="width:min(700px,96vw);max-height:92vh;">
@@ -932,7 +1000,8 @@ var _cache = {
   readReceipts: null,
   notifications: null,
   drugLists: {},
-  keyAgreements: null
+  keyAgreements: null,
+  keyRegister: null
 };
 
 // Load ALL data from Firebase into cache (called on login)
@@ -965,6 +1034,9 @@ function _loadCacheFromFirebase(onDone){
     }),
     _db.collection('data').doc('keyAgreements').get().then(function(d){
       if(d.exists) _cache.keyAgreements = d.data().list || [];
+    }),
+    _db.collection('data').doc('keyRegister').get().then(function(d){
+      if(d.exists) _cache.keyRegister = d.data().list || [];
     })
   ];
   Promise.all(promises).then(function(){
@@ -1008,7 +1080,8 @@ function _pushToFirebase(key, data){
     sharedDocs:   {list: data},
     readReceipts: {obj: data},
     notifications:{obj: data},
-    keyAgreements:{list: data}
+    keyAgreements:{list: data},
+    keyRegister:  {list: data}
   };
   _db.collection('data').doc(key)
     .set(payloads[key] || {value: data})
@@ -1389,6 +1462,18 @@ function renderKeyPage(){
       adminCard.classList.add('hidden');
     }
   }
+
+  renderMyClinicKeys();
+
+  var liveCard=document.getElementById('keyRegisterLiveAdminCard');
+  if(liveCard){
+    if(isAdmin()){
+      liveCard.classList.remove('hidden');
+      renderKeyRegisterLiveAdmin();
+    } else {
+      liveCard.classList.add('hidden');
+    }
+  }
 }
 
 function renderKeyAgreementChecklist(){
@@ -1478,6 +1563,256 @@ function revokeKeyAgreement(id){
   saveKeyAgreements(list);
   renderKeyPage();
   showToast('Agreement revoked');
+}
+
+// ── S4 LIVE KEY REGISTER ──
+function getKeyRegister(){
+  if(_cache.keyRegister !== null) return _cache.keyRegister;
+  try{ var k=JSON.parse(localStorage.getItem('rxaudit_key_register'));
+    if(k){ _cache.keyRegister=k; return k; } }catch(e){}
+  _cache.keyRegister=[]; return [];
+}
+function saveKeyRegister(list){
+  _cache.keyRegister=list;
+  localStorage.setItem('rxaudit_key_register',JSON.stringify(list));
+  _pushToFirebase('keyRegister', list);
+}
+function _keyClinicsList(){
+  var s=getSettings();
+  var clinics=(s.clinics||[]).slice();
+  getUsers().forEach(function(u){
+    if(u.role==='nurse'&&u.clinic&&clinics.indexOf(u.clinic)<0) clinics.push(u.clinic);
+  });
+  return clinics;
+}
+function _nursesForClinic(clinic){
+  return getUsers().filter(function(u){return u.role==='nurse'&&u.active!==false&&u.clinic===clinic;});
+}
+
+function renderMyClinicKeys(){
+  var card=document.getElementById('myClinicKeysCard');
+  var el=document.getElementById('myClinicKeysTable');
+  if(!card||!el)return;
+  if(currentUser.role!=='nurse'||!currentUser.clinic){ card.classList.add('hidden'); return; }
+  card.classList.remove('hidden');
+  var keys=getKeyRegister().filter(function(k){return k.clinic===currentUser.clinic;});
+  if(!keys.length){
+    el.innerHTML='<p style="font-size:13px;color:var(--muted);">No keys have been registered for your clinic yet. Ask your administrator to add one.</p>';
+    return;
+  }
+  var rows=keys.map(function(k){
+    var statusBadge='', actions='';
+    if(k.status==='pending'){
+      statusBadge='<span class="badge amber">Transfer pending → '+k.pendingToName+'</span>';
+      if(k.pendingToId===currentUser.id){
+        actions='<button class="btn btn-primary" style="padding:4px 10px;font-size:12px;" onclick="openAcceptModal('+k.id+')">Respond</button>';
+      }
+    } else if(k.holderId){
+      statusBadge='<span class="badge green">With '+k.holderName+'</span>';
+      if(k.holderId===currentUser.id){
+        actions='<button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;" onclick="openTransferModal('+k.id+')">Transfer</button>';
+      }
+    } else {
+      statusBadge='<span class="badge grey">Unassigned</span>';
+    }
+    actions+=' <button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;" onclick="viewKeyHistory('+k.id+')">History</button>';
+    return '<tr><td>'+k.label+'</td><td>'+statusBadge+'</td><td style="text-align:right;white-space:nowrap;">'+actions+'</td></tr>';
+  }).join('');
+  el.innerHTML='<table class="table"><thead><tr><th>Key</th><th>Status</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+
+function renderKeyRegisterLiveAdmin(){
+  var el=document.getElementById('keyRegisterLiveTable');
+  if(!el)return;
+  var keys=getKeyRegister();
+  if(!keys.length){
+    el.innerHTML='<p style="font-size:13px;color:var(--muted);">No keys registered yet. Click "Add Key" to register your clinics’ S4 drug safe keys.</p>';
+    return;
+  }
+  var rows=keys.slice().sort(function(a,b){return (a.clinic+a.label).localeCompare(b.clinic+b.label);}).map(function(k){
+    var statusBadge;
+    if(k.status==='pending') statusBadge='<span class="badge amber">'+k.holderName+' → '+k.pendingToName+' (pending)</span>';
+    else if(k.holderId) statusBadge='<span class="badge green">'+k.holderName+'</span>';
+    else statusBadge='<span class="badge grey">Unassigned</span>';
+    return '<tr><td>'+k.clinic+'</td><td>'+k.label+'</td><td>'+statusBadge+'</td>'
+      +'<td style="text-align:right;white-space:nowrap;">'
+      +'<button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;" onclick="viewKeyHistory('+k.id+')">History</button> '
+      +'<button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;" onclick="openAddKeyModal('+k.id+')">Edit</button>'
+      +'</td></tr>';
+  }).join('');
+  el.innerHTML='<table class="table"><thead><tr><th>Clinic</th><th>Key</th><th>Holder</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+
+window._keyAddEditId=null;
+function openAddKeyModal(id){
+  window._keyAddEditId=id||null;
+  var clinics=_keyClinicsList();
+  var clinicSel=document.getElementById('keyAddClinic');
+  clinicSel.innerHTML=clinics.map(function(c){return '<option value="'+c+'">'+c+'</option>';}).join('');
+  var key=null;
+  if(id){ key=getKeyRegister().find(function(k){return k.id===id;}); }
+  document.getElementById('keyAddModalTitle').textContent=id?'Edit Key':'Add Key';
+  document.getElementById('keyAddLabel').value=key?key.label:'';
+  if(key)clinicSel.value=key.clinic;
+  _refreshKeyAddHolderOptions();
+  if(key)document.getElementById('keyAddHolder').value=key.holderId||'';
+  document.getElementById('keyAddDeleteBtn').classList.toggle('hidden',!id);
+  document.getElementById('keyAddModal').classList.add('open');
+}
+function _refreshKeyAddHolderOptions(){
+  var clinic=document.getElementById('keyAddClinic').value;
+  var nurses=_nursesForClinic(clinic);
+  document.getElementById('keyAddHolder').innerHTML='<option value="">Unassigned</option>'
+    +nurses.map(function(u){return '<option value="'+u.id+'">'+u.name+'</option>';}).join('');
+}
+function closeAddKeyModal(){
+  document.getElementById('keyAddModal').classList.remove('open');
+}
+function saveKeyFromModal(){
+  var clinic=document.getElementById('keyAddClinic').value;
+  var label=(document.getElementById('keyAddLabel').value||'').trim();
+  var holderId=document.getElementById('keyAddHolder').value;
+  if(!label){ showToast('Please enter a key label'); return; }
+  var list=getKeyRegister();
+  var holder=holderId?getUsers().find(function(u){return u.id===Number(holderId);}):null;
+  if(window._keyAddEditId){
+    var k=list.find(function(x){return x.id===window._keyAddEditId;});
+    if(!k)return;
+    var changed=(k.holderId||null)!==(holder?holder.id:null);
+    k.clinic=clinic; k.label=label;
+    if(changed){
+      k.history=k.history||[];
+      k.history.push({date:new Date().toISOString(),action:'Reassigned by admin',fromName:k.holderName||'Unassigned',toName:holder?holder.name:'Unassigned',by:currentUser.name});
+      k.holderId=holder?holder.id:null;
+      k.holderName=holder?holder.name:null;
+      k.status=holder?'held':'unassigned';
+      k.pendingToId=null; k.pendingToName=null;
+    }
+  } else {
+    list.push({
+      id:Date.now(),
+      clinic:clinic,
+      label:label,
+      holderId:holder?holder.id:null,
+      holderName:holder?holder.name:null,
+      status:holder?'held':'unassigned',
+      pendingToId:null,
+      pendingToName:null,
+      history:[{date:new Date().toISOString(),action:'Key registered',fromName:'',toName:holder?holder.name:'Unassigned',by:currentUser.name}]
+    });
+  }
+  saveKeyRegister(list);
+  closeAddKeyModal();
+  renderKeyPage();
+  showToast('Key saved');
+}
+function deleteKey(){
+  if(!window._keyAddEditId)return;
+  if(!confirm('Delete this key from the register? This cannot be undone.'))return;
+  var editId=window._keyAddEditId;
+  var list=getKeyRegister().filter(function(k){return k.id!==editId;});
+  saveKeyRegister(list);
+  closeAddKeyModal();
+  renderKeyPage();
+  showToast('Key deleted');
+}
+
+window._keyTransferId=null;
+function openTransferModal(keyId){
+  var k=getKeyRegister().find(function(x){return x.id===keyId;});
+  if(!k)return;
+  var nurses=_nursesForClinic(k.clinic).filter(function(u){return u.id!==currentUser.id;});
+  if(!nurses.length){ showToast('No other nurses registered at your clinic'); return; }
+  window._keyTransferId=keyId;
+  document.getElementById('keyTransferLabel').textContent='Transfer "'+k.label+'" ('+k.clinic+') to another nurse at your clinic.';
+  document.getElementById('keyTransferTo').innerHTML=nurses.map(function(u){return '<option value="'+u.id+'">'+u.name+'</option>';}).join('');
+  document.getElementById('keyTransferPin').value='';
+  document.getElementById('keyTransferModal').classList.add('open');
+}
+function closeTransferModal(){
+  document.getElementById('keyTransferModal').classList.remove('open');
+}
+function confirmKeyTransfer(){
+  var keyId=window._keyTransferId;
+  var list=getKeyRegister();
+  var k=list.find(function(x){return x.id===keyId;});
+  if(!k)return;
+  var pin=(document.getElementById('keyTransferPin').value||'').trim();
+  if(pin!==String(currentUser.pin||'')){ showToast('Incorrect PIN'); return; }
+  var toId=Number(document.getElementById('keyTransferTo').value);
+  var toUser=getUsers().find(function(u){return u.id===toId;});
+  if(!toUser)return;
+  k.status='pending';
+  k.pendingToId=toUser.id;
+  k.pendingToName=toUser.name;
+  k.history=k.history||[];
+  k.history.push({date:new Date().toISOString(),action:'Handover initiated',fromName:currentUser.name,toName:toUser.name,by:currentUser.name});
+  saveKeyRegister(list);
+  closeTransferModal();
+  renderKeyPage();
+  showToast('Transfer initiated — awaiting '+toUser.name+' to accept');
+}
+
+window._keyAcceptId=null;
+function openAcceptModal(keyId){
+  var k=getKeyRegister().find(function(x){return x.id===keyId;});
+  if(!k)return;
+  window._keyAcceptId=keyId;
+  document.getElementById('keyAcceptLabel').textContent=k.holderName+' wants to hand over "'+k.label+'" ('+k.clinic+') to you.';
+  document.getElementById('keyAcceptPin').value='';
+  document.getElementById('keyAcceptModal').classList.add('open');
+}
+function _closeAcceptModal(){
+  document.getElementById('keyAcceptModal').classList.remove('open');
+}
+function acceptKeyTransfer(){
+  var keyId=window._keyAcceptId;
+  var list=getKeyRegister();
+  var k=list.find(function(x){return x.id===keyId;});
+  if(!k)return;
+  var pin=(document.getElementById('keyAcceptPin').value||'').trim();
+  if(pin!==String(currentUser.pin||'')){ showToast('Incorrect PIN'); return; }
+  k.history=k.history||[];
+  k.history.push({date:new Date().toISOString(),action:'Custody accepted',fromName:k.holderName,toName:k.pendingToName,by:currentUser.name});
+  k.holderId=k.pendingToId;
+  k.holderName=k.pendingToName;
+  k.pendingToId=null; k.pendingToName=null;
+  k.status='held';
+  saveKeyRegister(list);
+  _closeAcceptModal();
+  renderKeyPage();
+  showToast('Key custody accepted');
+}
+function declineKeyTransfer(){
+  var keyId=window._keyAcceptId;
+  var list=getKeyRegister();
+  var k=list.find(function(x){return x.id===keyId;});
+  if(!k)return;
+  k.history=k.history||[];
+  k.history.push({date:new Date().toISOString(),action:'Transfer declined',fromName:k.holderName,toName:k.pendingToName,by:currentUser.name});
+  k.status='held';
+  k.pendingToId=null; k.pendingToName=null;
+  saveKeyRegister(list);
+  _closeAcceptModal();
+  renderKeyPage();
+  showToast('Transfer declined');
+}
+
+function viewKeyHistory(keyId){
+  var k=getKeyRegister().find(function(x){return x.id===keyId;});
+  if(!k)return;
+  var el=document.getElementById('keyHistoryDetail');
+  var hist=(k.history||[]).slice().reverse();
+  el.innerHTML='<p><strong>'+k.label+'</strong> — '+k.clinic+'</p>'
+    +(hist.length?'<ul>'+hist.map(function(h){
+      return '<li>'+new Date(h.date).toLocaleString()+' — '+h.action
+        +(h.fromName?' from '+h.fromName:'')+(h.toName?' to '+h.toName:'')
+        +' (by '+h.by+')</li>';
+    }).join('')+'</ul>':'<p style="color:var(--muted);">No history recorded.</p>');
+  document.getElementById('keyHistoryModal').classList.add('open');
+}
+function closeKeyHistoryModal(){
+  document.getElementById('keyHistoryModal').classList.remove('open');
 }
 
 // ── VISIBLE CLINICS ──
@@ -3390,7 +3725,8 @@ var _DATA_DOC_MAP = {
   sharedDocs:    {cacheKey:'sharedDocs',    lsKey:'rxaudit_shared_docs', field:'list'},
   readReceipts:  {cacheKey:'readReceipts',  lsKey:'rxaudit_docs_read',   field:'obj'},
   notifications: {cacheKey:'notifications', lsKey:'rxaudit_docs_notify', field:'obj'},
-  keyAgreements: {cacheKey:'keyAgreements', lsKey:'rxaudit_key_agreements', field:'list'}
+  keyAgreements: {cacheKey:'keyAgreements', lsKey:'rxaudit_key_agreements', field:'list'},
+  keyRegister:   {cacheKey:'keyRegister',   lsKey:'rxaudit_key_register', field:'list'}
 };
 
 function _refreshUI(){
