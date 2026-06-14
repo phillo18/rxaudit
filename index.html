@@ -314,12 +314,6 @@ textarea:focus{border-color:var(--teal);}
       </div>
       <div id="monthlyReminderBanner"></div>
       <div id="docNotificationBanner"></div>
-      <div class="grid-4" style="margin-bottom:20px;">
-        <div class="stat-card warn"><div class="stat-label">Pending Today</div><div class="stat-value" id="statPending">—</div><div class="stat-sub" id="statPendingSub">clinics</div></div>
-        <div class="stat-card ok"><div class="stat-label">Completed Today</div><div class="stat-value" id="statCompleted">—</div><div class="stat-sub">stocktakes</div></div>
-        <div class="stat-card ok"><div class="stat-label">Total Records</div><div class="stat-value" id="statTotal">—</div><div class="stat-sub">visible to you</div></div>
-        <div class="stat-card alert"><div class="stat-label">Variances</div><div class="stat-value" id="statVariances">—</div><div class="stat-sub">total logged</div></div>
-      </div>
       <div class="card-title" style="margin-bottom:12px;" id="clinicGridTitle">Clinic Status — Today</div>
       <div id="clinicStatusGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;"></div>
       <div class="card">
@@ -2342,7 +2336,6 @@ function renderDashboard(){
   var todayRec=records.filter(function(r){return r.date===today;});
   var todayST=todayRec.filter(function(r){return r.type==='Stocktake';});
   var completedClinics=[...new Set(todayST.map(function(r){return r.clinic;}))];
-  var variances=records.filter(function(r){return r.hasVariance;});
 
   // Build nurse list for display
   var nurseList;
@@ -2361,11 +2354,6 @@ function renderDashboard(){
   }
 
   var pending=nurseList.filter(function(u){return completedClinics.indexOf(u.clinic)<0;});
-  document.getElementById('statPending').textContent=pending.length;
-  document.getElementById('statPendingSub').textContent=currentUser.role==='nurse'?'your clinic':'nurses';
-  document.getElementById('statCompleted').textContent=todayST.length;
-  document.getElementById('statTotal').textContent=records.length;
-  document.getElementById('statVariances').textContent=variances.length;
   var badge=document.getElementById('pendingBadge');
   badge.classList.toggle('hidden',pending.length===0);
   badge.textContent=pending.length+' Pending';
