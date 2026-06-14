@@ -4002,6 +4002,7 @@ function exportPDF(reportType){
   doc.text('Clinic: '+clinicStr+'   Period: '+periodStr,14,y);doc.setTextColor(0,0,0);y+=8;
   function addSection(title,data,cols){
     if(!data.length)return;
+    if(y>260){doc.addPage();y=20;}
     doc.setFont('helvetica','bold');doc.setFontSize(10);doc.text(title,14,y);y+=4;
     doc.autoTable({startY:y,head:[cols.map(function(c){return c.header;})],body:data.map(function(r){return cols.map(function(c){return String(c.get(r)!=null?c.get(r):'\u2014');});}),styles:{fontSize:8,cellPadding:2},headStyles:{fillColor:[15,31,61],textColor:255,fontStyle:'bold'},alternateRowStyles:{fillColor:[245,248,252]},margin:{left:14,right:14}});
     y=doc.lastAutoTable.finalY+10;
