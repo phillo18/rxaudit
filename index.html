@@ -7,6 +7,7 @@
   <!-- Firebase SDK (compat mode - works without ES modules) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <style>
@@ -1113,6 +1114,7 @@ var FIREBASE_CONFIG = {
 // FIREBASE INIT — loads SDK from CDN, no ES modules
 // ============================================================
 var _db = null;
+var _storage = null;
 var _fbReady = false;
 var _fbLoadError = null;
 
@@ -1125,6 +1127,7 @@ function _initFirebase(){
     firebase.initializeApp(FIREBASE_CONFIG);
   }
   _db = firebase.firestore();
+  if(firebase.storage) _storage = firebase.storage();
   // Enable offline persistence so app works even with poor connection
   _db.enablePersistence({synchronizeTabs:true}).catch(function(err){
     if(err.code==='failed-precondition'){
@@ -1464,10 +1467,6 @@ function saveSharedDocs(docs){
   try{ localStorage.setItem('rxaudit_shared_docs',JSON.stringify(docs)); }catch(e){ console.warn('localStorage shared docs:', e); }
   _pushToFirebase('sharedDocs', docs);
 }
-// Firestore documents are capped at 1MB; leave headroom for JSON overhead
-// and other fields when storing base64 file data inline.
-var FIRESTORE_DOC_SAFE_BYTES = 900000;
-
 // ── NURSE DOCS ──
 function getNurseDocs(nurseId){
   var nid=String(nurseId);
@@ -4324,19 +4323,16 @@ function uploadFilesForNurse(files, nurseId, input){
   var docs=getNurseDocs(nurseId);
   var loaded=0; var total=files.length;
   var added=0;
-  var rejected=[];
+  var failed=[];
   Array.from(files).forEach(function(file){
-    readFileAsB64(file,function(data){
-      if(data){
+    uploadFileToStorage(file,'nurseDocs/'+nurseId,function(url,path,err){
+      if(url){
         docs.unshift({id:'nd_'+Date.now()+'_'+Math.random().toString(36).slice(2),
-          name:file.name,ext:getExt(file.name),size:file.size,data:data,
+          name:file.name,ext:getExt(file.name),size:file.size,url:url,storagePath:path,
           uploaded:new Date().toLocaleDateString('en-AU')});
-        if(JSON.stringify(docs).length>FIRESTORE_DOC_SAFE_BYTES){
-          docs.shift();
-          rejected.push(file.name);
-        } else {
-          added++;
-        }
+        added++;
+      } else {
+        failed.push(file.name+(err?' ('+err+')':''));
       }
       loaded++;
       if(loaded===total){
@@ -4345,10 +4341,10 @@ function uploadFilesForNurse(files, nurseId, input){
           renderNurseDocsList(nurseId,document.getElementById('nurseDocsList'),false);
         }
         if(added>0)showToast('✓ '+added+' file'+(added>1?'s':'')+' uploaded');
-        if(rejected.length)showToast('⚠ Too large for storage (combined limit ~'+Math.round(FIRESTORE_DOC_SAFE_BYTES/1024)+'KB): '+rejected.join(', '));
+        if(failed.length)showToast('⚠ Upload failed: '+failed.join(', '));
         if(input)input.value='';
       }
-    },file.size);
+    });
   });
 }
 
@@ -4363,7 +4359,7 @@ function renderSharedDocs(isNurse){
     html+='<div style="margin-bottom:16px;">'
       +'<div style="border:2px dashed var(--teal);border-radius:10px;padding:20px;text-align:center;background:rgba(0,184,162,0.04);">'
       +'<div style="font-size:28px;margin-bottom:6px;">📂</div>'
-      +'<div style="font-size:13px;color:var(--muted);margin-bottom:10px;">PDF, Word, Excel, images — up to ~700 KB per file</div>'
+      +'<div style="font-size:13px;color:var(--muted);margin-bottom:10px;">PDF, Word, Excel, images — up to 25 MB per file</div>'
       +'<label for="sharedFileInput" style="display:inline-block;background:var(--teal);color:var(--navy);font-weight:700;padding:10px 24px;border-radius:7px;cursor:pointer;font-size:14px;">📎 Choose Files to Upload</label>'
       +'<input type="file" id="sharedFileInput" style="display:none;" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.txt" onchange="handleSharedUpload(this)">'
       +'</div></div>';
@@ -4433,6 +4429,23 @@ function renderNurseDocsList(nurseId, container){
   container.innerHTML='<table class="table"><thead><tr><th>File name</th><th>Type</th><th>Size</th><th>Uploaded</th><th style="text-align:right;"></th></tr></thead><tbody>'+rows+'</tbody></table>';
 }
 
+// Files are uploaded to Firebase Storage; Firestore only stores small
+// metadata (name, size, url, storagePath) to stay well under the 1MB
+// document limit.
+var STORAGE_MAX_BYTES = 26214400; // 25MB
+function uploadFileToStorage(file, folder, cb){
+  if(file.size>STORAGE_MAX_BYTES){cb(null,null,'max 25MB');return;}
+  if(!_storage){cb(null,null,'cloud storage unavailable');return;}
+  var path=folder+'/'+Date.now()+'_'+Math.random().toString(36).slice(2,8)+'_'+file.name;
+  _storage.ref().child(path).put(file).then(function(snap){
+    return snap.ref.getDownloadURL();
+  }).then(function(url){
+    cb(url,path,null);
+  }).catch(function(err){
+    cb(null,null,(err&&err.message)||'upload failed');
+  });
+}
+
 function handleSharedUpload(input){
   if(!input.files||!input.files.length)return;
   var files=Array.from(input.files);
@@ -4440,26 +4453,24 @@ function handleSharedUpload(input){
   var total=files.length;
   var loaded=0;
   var added=0;
-  var rejected=[];
+  var failed=[];
   files.forEach(function(file){
-    readFileAsB64(file,function(data){
-      if(data){
+    uploadFileToStorage(file,'sharedDocs',function(url,path,err){
+      if(url){
         docs.unshift({
           id:'sd_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),
           name:file.name,
           ext:getExt(file.name),
           size:file.size,
-          data:data,
+          url:url,
+          storagePath:path,
           uploaded:new Date().toLocaleDateString('en-AU'),
           by:currentUser.name,
           uploadedISO:new Date().toISOString()
         });
-        if(JSON.stringify(docs).length>FIRESTORE_DOC_SAFE_BYTES){
-          docs.shift();
-          rejected.push(file.name);
-        } else {
-          added++;
-        }
+        added++;
+      } else {
+        failed.push(file.name+' ('+err+')');
       }
       loaded++;
       if(loaded===total){
@@ -4470,9 +4481,9 @@ function handleSharedUpload(input){
         }
         input.value='';
         if(added>0)showToast('\u2713 '+added+' file'+(added>1?'s':'')+' uploaded \u2014 nurses will be notified');
-        if(rejected.length)showToast('\u26a0 Too large for shared storage (combined limit ~'+Math.round(FIRESTORE_DOC_SAFE_BYTES/1024)+'KB): '+rejected.join(', '));
+        if(failed.length)showToast('\u26a0 Upload failed: '+failed.join(', '));
       }
-    },file.size);
+    });
   });
 }
 
@@ -4481,20 +4492,17 @@ function handleNurseUpload(input,nurseId){
   var docs=getNurseDocs(nurseId);
   var total=input.files.length;var loaded=0;
   var added=0;
-  var rejected=[];
+  var failed=[];
   Array.from(input.files).forEach(function(file){
-    readFileAsB64(file,function(data){
-      if(data){
+    uploadFileToStorage(file,'nurseDocs/'+nurseId,function(url,path,err){
+      if(url){
         docs.unshift({id:'nd_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),
           name:file.name,ext:getExt(file.name),size:file.size,
-          data:data,uploaded:new Date().toLocaleDateString('en-AU'),
+          url:url,storagePath:path,uploaded:new Date().toLocaleDateString('en-AU'),
           uploadedISO:new Date().toISOString()});
-        if(JSON.stringify(docs).length>FIRESTORE_DOC_SAFE_BYTES){
-          docs.shift();
-          rejected.push(file.name);
-        } else {
-          added++;
-        }
+        added++;
+      } else {
+        failed.push(file.name+' ('+err+')');
       }
       loaded++;
       if(loaded===total){
@@ -4505,19 +4513,11 @@ function handleNurseUpload(input,nurseId){
             document.getElementById('nurseDocsList'));
         }
         if(added>0)showToast('\u2713 '+added+' file'+(added>1?'s':'')+' uploaded');
-        if(rejected.length)showToast('\u26a0 Too large for storage (combined limit ~'+Math.round(FIRESTORE_DOC_SAFE_BYTES/1024)+'KB): '+rejected.join(', '));
+        if(failed.length)showToast('\u26a0 Upload failed: '+failed.join(', '));
       }
-    },file.size);
+    });
   });
   input.value='';
-}
-
-function readFileAsB64(file,cb,size){
-  if(size>700000){cb(null);showToast('File too large (max ~700KB): '+file.name);return;}
-  var r=new FileReader();
-  r.onload=function(e){cb(e.target.result);};
-  r.onerror=function(){cb(null);};
-  r.readAsDataURL(file);
 }
 function getExt(name){var p=name.lastIndexOf('.');return p>=0?name.slice(p+1).toLowerCase():'file';}
 
@@ -4527,6 +4527,11 @@ function downloadDoc(type,docId,nurseId){
   if(type==='shared')doc=getSharedDocs().find(function(d){return d.id===docId;});
   else doc=getNurseDocs(nurseId).find(function(d){return d.id===docId;});
   if(!doc){showToast('File not found');return;}
+  if(doc.url){
+    var a=document.createElement('a');a.href=doc.url;a.target='_blank';a.rel='noopener';a.download=doc.name;a.click();
+    showToast('\u2713 Downloading: '+doc.name);
+    return;
+  }
   if(!doc.data){showToast('File data not available — file may have been too large to store');return;}
   var a=document.createElement('a');a.href=doc.data;a.download=doc.name;a.click();
   showToast('\u2713 Downloading: '+doc.name);
@@ -4583,7 +4588,10 @@ function viewReadReceipts(docId,docName){
 // ── DELETE ──
 function deleteSharedDoc(docId){
   if(!confirm('Delete this shared document? All nurses will lose access to it.'))return;
-  saveSharedDocs(getSharedDocs().filter(function(d){return d.id!==docId;}));
+  var docs=getSharedDocs();
+  var doc=docs.find(function(d){return d.id===docId;});
+  if(doc&&doc.storagePath&&_storage)_storage.ref().child(doc.storagePath).delete().catch(function(e){console.warn('storage delete:',e);});
+  saveSharedDocs(docs.filter(function(d){return d.id!==docId;}));
   // Clean up read receipts for this doc
   var receipts=getReadReceipts();delete receipts[docId];
   saveReadReceipts(receipts);
@@ -4591,7 +4599,10 @@ function deleteSharedDoc(docId){
 }
 function deleteNurseDoc(nurseId,docId){
   if(!confirm('Delete this file from the nurse profile?'))return;
-  saveNurseDocs(nurseId,getNurseDocs(nurseId).filter(function(d){return d.id!==docId;}));
+  var docs=getNurseDocs(nurseId);
+  var doc=docs.find(function(d){return d.id===docId;});
+  if(doc&&doc.storagePath&&_storage)_storage.ref().child(doc.storagePath).delete().catch(function(e){console.warn('storage delete:',e);});
+  saveNurseDocs(nurseId,docs.filter(function(d){return d.id!==docId;}));
   renderNurseDocsList(nurseId, document.getElementById('nurseDocsList'));
   showToast('File deleted');
 }
