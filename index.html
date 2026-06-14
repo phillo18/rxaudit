@@ -100,6 +100,12 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .check-item.checked .check-label{color:var(--muted);text-decoration:line-through;}
 .check-req{font-size:10px;color:var(--muted);margin-left:auto;text-transform:uppercase;white-space:nowrap;}
 .check-req.mandatory{color:var(--red);font-weight:600;}
+.agreement-text{max-height:360px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:14px 16px;background:white;font-size:12.5px;line-height:1.6;}
+.agreement-text h4{font-size:13px;margin:14px 0 6px;color:var(--navy);}
+.agreement-text h4:first-child{margin-top:0;}
+.agreement-text p{margin:0 0 8px;}
+.agreement-text ul{margin:0 0 8px 18px;padding:0;}
+.agreement-text li{margin-bottom:4px;}
 .drug-row{display:grid;grid-template-columns:200px 80px 80px 80px 80px 1fr 28px;gap:8px;align-items:center;padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:white;margin-bottom:6px;font-size:13px;}
 .drug-row.header{background:var(--navy);color:white;font-size:10px;font-weight:700;text-transform:uppercase;border-color:var(--navy);}
 .drug-row input[type="number"]{border:1px solid var(--border);border-radius:5px;padding:5px 7px;font-size:13px;font-family:var(--mono);width:100%;text-align:right;outline:none;}
@@ -280,6 +286,7 @@ textarea:focus{border-color:var(--teal);}
       <div class="nav-item" data-page="reports" onclick="showPage('reports')"><span class="nav-icon">🖨️</span> Print Reports</div>
       <div class="nav-item" data-page="documents" onclick="showPage('documents')"><span class="nav-icon">📁</span> Documents</div>
       <div class="nav-item" data-page="keys" onclick="showPage('keys')"><span class="nav-icon">🔑</span> Key Register</div>
+      <div class="nav-item" data-page="onboarding" onclick="showPage('onboarding')"><span class="nav-icon">📝</span> Onboarding Agreements</div>
     </div>
     <div class="sidebar-section hidden" id="adminNav">
       <div class="sidebar-label">Admin Only</div>
@@ -296,6 +303,7 @@ textarea:focus{border-color:var(--teal);}
       <div class="nav-item" data-page="documents" onclick="showPage('documents')"><span class="nav-icon">📁</span>Docs</div>
       <div class="nav-item" data-page="reports" onclick="showPage('reports')"><span class="nav-icon">🖨️</span>Reports</div>
       <div class="nav-item" data-page="keys" onclick="showPage('keys')"><span class="nav-icon">🔑</span>Keys</div>
+      <div class="nav-item" data-page="onboarding" onclick="showPage('onboarding')"><span class="nav-icon">📝</span>Onboarding</div>
       <div class="nav-item hidden" id="mobileAdminBtn" data-page="users" onclick="showPage('users')"><span class="nav-icon">👥</span>Admin</div>
       <div class="nav-item hidden" id="mobileSettingsBtn" data-page="settings" onclick="showPage('settings')"><span class="nav-icon">⚙️</span>Settings</div>
     </div>
@@ -698,6 +706,61 @@ textarea:focus{border-color:var(--teal);}
       </div>
     </div>
 
+    <!-- ONBOARDING AGREEMENTS -->
+    <div class="page" id="page-onboarding">
+      <div class="page-header">
+        <div><div class="page-title">Onboarding Agreements</div><div class="page-sub">Governance &amp; Fee Agreements — consent and signed records</div></div>
+        <button class="btn btn-ghost" onclick="showPage('dashboard')">← Back</button>
+      </div>
+
+      <!-- My status -->
+      <div class="card" id="myOnboardingStatusCard"></div>
+
+      <!-- Governance Agreement signing form -->
+      <div class="card hidden" id="onbGovernanceFormCard">
+        <div class="card-title" style="margin-bottom:10px;">Medicines Governance &amp; Responsibilities Agreement</div>
+        <div class="agreement-text" id="onbGovernanceText"></div>
+        <div style="margin-top:16px;padding:14px;background:var(--bg);border-radius:8px;">
+          <div class="checklist">
+            <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox" id="onbGovernanceAgree">
+              <span class="check-label">I have read and understood this Agreement in full and agree to be bound by its terms.</span>
+              <span class="check-req mandatory">Mandatory</span></label>
+          </div>
+          <p style="font-size:13px;margin:12px 0;"><strong>Electronic Declaration:</strong> By typing my name and entering my PIN below, I am electronically signing this Agreement.</p>
+          <div class="form-row">
+            <div class="field"><label>Type your full name to sign</label><input type="text" id="onbGovernanceName" placeholder="Full legal name"></div>
+            <div class="field"><label>Enter your PIN to confirm</label><input type="password" id="onbGovernancePin" maxlength="8" placeholder="Your login PIN" autocomplete="off"></div>
+          </div>
+          <button class="btn btn-primary" onclick="signOnboardingAgreement('governance')">📝 Sign and Accept</button>
+        </div>
+      </div>
+
+      <!-- Fee Agreement signing form -->
+      <div class="card hidden" id="onbFeeFormCard">
+        <div class="card-title" style="margin-bottom:10px;">Fee Agreement</div>
+        <div class="agreement-text" id="onbFeeText"></div>
+        <div style="margin-top:16px;padding:14px;background:var(--bg);border-radius:8px;">
+          <div class="checklist">
+            <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox" id="onbFeeAgree">
+              <span class="check-label">I have read and understood this Agreement in full and agree to be bound by its terms.</span>
+              <span class="check-req mandatory">Mandatory</span></label>
+          </div>
+          <p style="font-size:13px;margin:12px 0;"><strong>Electronic Declaration:</strong> By typing my name and entering my PIN below, I am electronically signing this Agreement.</p>
+          <div class="form-row">
+            <div class="field"><label>Type your full name to sign</label><input type="text" id="onbFeeName" placeholder="Full legal name"></div>
+            <div class="field"><label>Enter your PIN to confirm</label><input type="password" id="onbFeePin" maxlength="8" placeholder="Your login PIN" autocomplete="off"></div>
+          </div>
+          <button class="btn btn-primary" onclick="signOnboardingAgreement('fee')">📝 Sign and Accept</button>
+        </div>
+      </div>
+
+      <!-- Admin: register of all onboarding agreements -->
+      <div class="card hidden" id="onboardingAdminCard">
+        <div class="card-title" style="margin-bottom:14px;">Onboarding Agreement Status — All Nurses</div>
+        <div id="onboardingAdminTable"></div>
+      </div>
+    </div>
+
     <!-- AUDIT LOG -->
     <div class="page" id="page-log">
       <div class="page-header">
@@ -736,6 +799,7 @@ textarea:focus{border-color:var(--teal);}
       <div class="print-option"><div class="print-option-info"><h4>✅ Compliance Check History</h4><p>Evidence of ongoing compliance monitoring.</p></div><button class="btn btn-navy" onclick="exportPDF('compliance')">Download PDF</button></div>
       <div class="print-option"><div class="print-option-info"><h4>🗓️ Audit Meeting Minutes</h4><p>Monthly compliance meeting records.</p></div><button class="btn btn-navy" onclick="exportPDF('meetings')">Download PDF</button></div>
       <div class="print-option"><div class="print-option-info"><h4>🔑 S4 Key Holder Agreements</h4><p>Signed key holder authorisations and declarations.</p></div><button class="btn btn-navy" onclick="exportPDF('keys')">Download PDF</button></div>
+      <div class="print-option"><div class="print-option-info"><h4>📝 Onboarding Agreements</h4><p>Signed Governance &amp; Fee Agreement status for all nurses.</p></div><button class="btn btn-navy" onclick="exportPDF('onboarding')">Download PDF</button></div>
       <div class="print-option"><div class="print-option-info"><h4>📊 Full Audit Package</h4><p>Everything in one PDF — submit to QLD Health.</p></div><button class="btn btn-primary" onclick="exportPDF('all')">Download Full PDF</button></div>
     </div>
 
@@ -828,6 +892,18 @@ textarea:focus{border-color:var(--teal);}
     <div id="keyAgreementDetail" style="font-size:13px;line-height:1.7;"></div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeKeyAgreementModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ONBOARDING AGREEMENT VIEW MODAL (admin) -->
+<div class="modal-overlay" id="onboardingAgreementModal">
+  <div class="modal" style="width:min(700px,96vw);max-height:92vh;overflow:auto;">
+    <div class="modal-title" id="onboardingAgreementTitle">Signed Agreement</div>
+    <div id="onboardingAgreementMeta" style="font-size:13px;line-height:1.7;margin-bottom:10px;"></div>
+    <div class="agreement-text" id="onboardingAgreementDetail" style="max-height:50vh;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeOnboardingAgreementModal()">Close</button>
     </div>
   </div>
 </div>
@@ -1039,7 +1115,8 @@ var _cache = {
   drugLists: {},
   keyAgreements: null,
   keyRegister: null,
-  keyIncidents: null
+  keyIncidents: null,
+  onboardingAgreements: null
 };
 
 // Load ALL data from Firebase into cache (called on login)
@@ -1078,6 +1155,9 @@ function _loadCacheFromFirebase(onDone){
     }),
     _db.collection('data').doc('keyIncidents').get().then(function(d){
       if(d.exists) _cache.keyIncidents = d.data().list || [];
+    }),
+    _db.collection('data').doc('onboardingAgreements').get().then(function(d){
+      if(d.exists) _cache.onboardingAgreements = d.data().list || [];
     })
   ];
   Promise.all(promises).then(function(){
@@ -1123,7 +1203,8 @@ function _pushToFirebase(key, data){
     notifications:{obj: data},
     keyAgreements:{list: data},
     keyRegister:  {list: data},
-    keyIncidents: {list: data}
+    keyIncidents: {list: data},
+    onboardingAgreements: {list: data}
   };
   _db.collection('data').doc(key)
     .set(payloads[key] || {value: data})
@@ -1617,6 +1698,358 @@ function revokeKeyAgreement(id){
   showToast('Agreement revoked');
 }
 
+// ── ONBOARDING AGREEMENTS (Governance & Fee) ──
+var GOVERNANCE_AGREEMENT_VERSION = 'Governance Agreement v1.0';
+var FEE_AGREEMENT_VERSION = 'Fee Agreement v1.0 (draft)';
+
+function _governanceAgreementHTML(nurse){
+  var s=getSettings();
+  var rdpName=s.rdpName||'Dr Philip Lo';
+  var rdpAhpra=s.rdpAhpra||'MED0001194128';
+  return `
+<h4>1. Parties</h4>
+<p>This Agreement is between</p>
+<p><strong>Responsible Medical Practitioner (Medicines Governance):</strong><br>${rdpName}<br>AHPRA Specialist Registration ${rdpAhpra}</p>
+<p><strong>Registered Nurse:</strong><br>${nurse.name||''}<br>AHPRA Registration ${nurse.ahpra||''}</p>
+<p><strong>Clinic:</strong><br>${nurse.clinic||''}</p>
+<h4>2. Purpose</h4>
+<p>The purpose of this Agreement is to define responsibilities for the procurement, custody, storage, cold chain management, stock control, and administration processes for Schedule 4 medicines used within the clinic.</p>
+<p>This Agreement supports compliance with the <strong>Medicines and Poisons Act 2019 (Qld)</strong> and <strong>Medicines and Poisons Regulation Act 2021 (Qld)</strong> and associated regulations.</p>
+<h4>3. Role of Responsible Medical Practitioner (Medicines Governance Only)</h4>
+<p>The Responsible Medical Practitioner is responsible solely for medicines governance, including:</p>
+<ul>
+<li>Procurement of Schedule 4 cosmetic medicines</li>
+<li>Receipt, verification, and recording of deliveries (including batch/expiry tracking)</li>
+<li>Custody and secure storage oversight of all S4 medicines</li>
+<li>Maintenance of stock registers and reconciliation systems</li>
+<li>Oversight of cold chain storage compliance and monitoring</li>
+<li>Periodic stocktakes and reconciliation against usage and wastage records</li>
+<li>Investigation of discrepancies, losses, or governance incidents</li>
+<li>Ensuring systems are in place for regulatory compliance and audit readiness</li>
+</ul>
+<p>The Responsible Medical Practitioner does <strong>not</strong>:</p>
+<ul>
+<li>Provide cosmetic patient consultations</li>
+<li>Provide prescribing decisions for cosmetic treatments</li>
+<li>Determine patient-specific dosing or treatment plans (unless separately engaged clinically outside this arrangement)</li>
+<li>Supervise or direct nursing clinical practice</li>
+</ul>
+<h4>4. Prescribing Arrangements (Fresh Clinics Model)</h4>
+<p>All patient-specific prescribing decisions, including indication, product selection, dosing, and treatment planning, are undertaken independently by authorised medical practitioners engaged through Fresh Clinics following individual patient consultation.</p>
+<p>The Responsible Medical Practitioner:</p>
+<ul>
+<li>Does not issue cosmetic prescriptions through Fresh Clinics</li>
+<li>Does not direct or influence prescribing decisions</li>
+<li>Is not responsible for clinical assessment or treatment planning of cosmetic patients</li>
+</ul>
+<h4>5. Registered Nurse Responsibilities</h4>
+<p>The Registered Nurse is responsible for:</p>
+<ul>
+<li>Administration of S4 medicines strictly in accordance with valid prescriptions issued via Fresh Clinics</li>
+<li>Accurate contemporaneous documentation of all treatments including: product name, batch and expiry, dose, anatomical site, date and time</li>
+<li>Maintenance of accurate administration records within the clinic system</li>
+<li>Immediate reporting to the Responsible Medical Practitioner of: stock discrepancies, wastage or breakages, cold chain excursions, suspected medication errors, adverse patient reactions</li>
+<li>Compliance with secure storage and access procedures</li>
+<li>Safe handling and disposal processes in accordance with clinic policy</li>
+</ul>
+<p>The Registered Nurse remains professionally and legally responsible for their own nursing practice and clinical conduct.</p>
+<h4>6. Independence of Roles</h4>
+<p>The Parties acknowledge:</p>
+<ul>
+<li>Clinical prescribing authority rests solely with the Fresh Clinics Medical Practitioner</li>
+<li>Nursing scope is limited to administration and patient care</li>
+<li>Responsible Medical Practitioner role is strictly governance and compliance</li>
+<li>No party may operate outside their legislated scope under Queensland law</li>
+</ul>
+<h4>7. Cold Chain Storage and Management</h4>
+<p>The clinic maintains compliant cold chain storage for temperature sensitive medicines:</p>
+<ul>
+<li>Medicines stored in a locked, temperature monitored refrigerator within a restricted access area</li>
+<li>Temperature logs maintained and reviewed regularly</li>
+<li>Defined acceptable temperature range consistent with manufacturer requirements</li>
+<li>Immediate reporting of any temperature excursion to the Responsible Medical Practitioner</li>
+<li>Documentation of all excursions including investigation outcome and stock disposition</li>
+<li>Quarantine of affected stock pending governance review</li>
+</ul>
+<p>The Responsible Medical Practitioner retains oversight responsibility for cold chain governance systems.</p>
+<h4>8. Stock Management and Traceability</h4>
+<p>All S4 medicines must be fully traceable:</p>
+<p>Purchase → Delivery → Storage → Patient Administration → Wastage/Remaining Stock</p>
+<ul>
+<li>All deliveries recorded with batch and expiry details</li>
+<li>All administrations recorded with batch linkage</li>
+<li>Stock discrepancies must be immediately escalated</li>
+<li>Regular reconciliation performed by Responsible Medical Practitioner</li>
+</ul>
+<h4>9. Incident Reporting and Escalation</h4>
+<p>The Registered Nurse must immediately report:</p>
+<ul>
+<li>Stock discrepancies</li>
+<li>Breakages or wastage</li>
+<li>Cold chain breaches</li>
+<li>Medication errors</li>
+<li>Adverse patient reactions</li>
+<li>Any suspected loss or diversion of stock</li>
+</ul>
+<p>The Responsible Medical Practitioner will oversee investigation and governance response.</p>
+<h4>10. Governance and Compliance</h4>
+<p>Both parties agree to:</p>
+<ul>
+<li>Maintain accurate and contemporaneous records</li>
+<li>Cooperate with Queensland Health audits and inspections</li>
+<li>Maintain systems consistent with the Medicines and Poisons Act 2019 (Qld)</li>
+<li>Implement corrective actions where required</li>
+</ul>
+<h4>11. Professional Responsibility</h4>
+<p>Each party remains responsible for their own professional obligations under applicable legislation, regulatory requirements, and professional standards.</p>
+<p>Nothing in this Agreement transfers or removes statutory obligations imposed under Queensland medicines legislation.</p>
+<h4>12. No Vicarious Clinical Liability</h4>
+<p>The Parties expressly agree that:</p>
+<ul>
+<li>The Responsible Medical Practitioner (Philip Lo) is engaged solely in a non-clinical governance and medicines governance role</li>
+<li>The Responsible Medical Practitioner does not provide medical advice, diagnosis, prescribing, or clinical direction</li>
+<li>The Responsible Medical Practitioner does not supervise clinical decision-making or patient management</li>
+</ul>
+<p>Accordingly, the Registered Nurse acknowledges and agrees that:</p>
+<ul>
+<li>clinical responsibility for patient assessment, prescribing, and treatment planning lies entirely with the external prescribing medical practitioner</li>
+<li>the Responsible Medical Practitioner bears no liability for clinical decisions, prescribing outcomes, or patient complications arising from treatment decisions made by others</li>
+</ul>
+<p>The Parties agree that:</p>
+<ul>
+<li>no vicarious liability shall attach to the Responsible Medical Practitioner for acts or omissions of the Registered Nurse in clinical practice, or any external prescribing medical practitioner</li>
+<li>liability is strictly limited to each Party's lawful scope of practice and direct actions</li>
+</ul>
+<h4>13. Breach of Compliance</h4>
+<p>Any breach of:</p>
+<ul>
+<li>Medicines and Poisons Act 2019 (Qld), Medicines and Poisons Regulations 2021 (Qld)</li>
+<li>Fresh Clinics prescribing protocol</li>
+<li>Stock governance rules</li>
+</ul>
+<p>may result in:</p>
+<ul>
+<li>Immediate suspension of access to stock</li>
+<li>Reporting to regulatory authorities</li>
+<li>Termination of Agreement</li>
+</ul>
+<h4>14. Professional Registration and Insurance</h4>
+<p>The Registered Nurse must maintain current AHPRA registration and appropriate professional indemnity insurance at all times and must immediately notify the Responsible Medical Practitioner of any restriction, suspension, investigation, or lapse.</p>
+<p>Failure to comply is a material breach of this Agreement.</p>
+<h4>15. Confidentiality</h4>
+<p>The Registered Nurse must keep confidential all information obtained in connection with the clinic, including patient information, business information, financial information, supplier information, policies, procedures, records, and operational systems.</p>
+<p>The Registered Nurse must not use or disclose such information except as required to perform their duties under this Agreement or as required by law.</p>
+<p>The obligations in this clause continue after termination of this Agreement.</p>
+<h4>16. Non Solicitation</h4>
+<p>During the term of this Agreement and for 12 months after its termination, the Registered Nurse must not knowingly solicit or attempt to solicit the clinic's patients, staff, contractors, or suppliers for the purpose of establishing or assisting a competing business.</p>
+<h4>17. Acknowledgement</h4>
+<p>Both parties acknowledge:</p>
+<ul>
+<li>understanding of Queensland medicines and poisons legislation</li>
+<li>that compliance with S4 prescribing and supply laws is mandatory</li>
+<li>that breach may result in criminal and professional penalties</li>
+</ul>
+<h4>18. Review</h4>
+<p>This Agreement may be reviewed at any time including:</p>
+<ul>
+<li>Upon changes in QLD Health regulation</li>
+<li>Following any adverse regulatory finding</li>
+</ul>
+<h4>19. Termination</h4>
+<p>This Agreement may be terminated:</p>
+<ul>
+<li>by either party with written notice</li>
+<li>immediately if regulatory breach occurs</li>
+<li>if AHPRA or Queensland Health restrictions apply</li>
+</ul>
+<h4>20. Electronic Signature</h4>
+<p>This Agreement is executed electronically. By ticking the acknowledgement box and entering your name and PIN, the Registered Nurse confirms they have read, understood, and agree to be bound by all clauses of this Agreement, and a signed record (including date and time) will be retained by the clinic.</p>
+`;
+}
+
+function _feeAgreementHTML(nurse){
+  var s=getSettings();
+  var rdpName=s.rdpName||'Dr Philip Lo';
+  return `
+<h4>1. Parties</h4>
+<p>This Fee Agreement is between</p>
+<p><strong>Clinic Owner / Responsible Medical Practitioner:</strong><br>${rdpName}</p>
+<p><strong>Registered Nurse:</strong><br>${nurse.name||''}<br>AHPRA Registration ${nurse.ahpra||''}</p>
+<p><strong>Clinic:</strong><br>${nurse.clinic||''}</p>
+<h4>2. Purpose</h4>
+<p>This Agreement sets out the fee, commission, and/or payment arrangements between the clinic and the Registered Nurse for cosmetic treatment services performed at the clinic.</p>
+<p><em>Note: This is a draft template. The Responsible Medical Practitioner will finalise the specific fee structure, commission rates, and payment schedule with each nurse, and this section will be updated accordingly.</em></p>
+<h4>3. Fee / Commission Structure</h4>
+<p>[To be confirmed — e.g. commission percentage on treatments performed, base rate, or salary arrangement, as agreed between the Parties.]</p>
+<h4>4. Payment Schedule</h4>
+<p>[To be confirmed — e.g. frequency of payment, method of payment, and any deductions.]</p>
+<h4>5. Record Keeping</h4>
+<p>Both parties agree to maintain accurate records of treatments performed for the purpose of calculating fees owing under this Agreement.</p>
+<h4>6. Review and Variation</h4>
+<p>This Agreement may be reviewed and varied by written agreement between the Parties from time to time.</p>
+<h4>7. Termination</h4>
+<p>This Agreement may be terminated in accordance with the terms of the Registered Nurse's engagement with the clinic.</p>
+<h4>8. Electronic Signature</h4>
+<p>This Agreement is executed electronically. By ticking the acknowledgement box and entering your name and PIN, the Registered Nurse confirms they have read, understood, and agree to be bound by this Agreement, and a signed record (including date and time) will be retained by the clinic.</p>
+`;
+}
+
+var ONBOARDING_AGREEMENT_TYPES = {
+  governance:{label:'Governance Agreement', title:'Medicines Governance & Responsibilities Agreement', version:GOVERNANCE_AGREEMENT_VERSION, html:_governanceAgreementHTML},
+  fee:{label:'Fee Agreement', title:'Fee Agreement', version:FEE_AGREEMENT_VERSION, html:_feeAgreementHTML}
+};
+
+function getOnboardingAgreements(){
+  if(_cache.onboardingAgreements !== null) return _cache.onboardingAgreements;
+  try{ var k=JSON.parse(localStorage.getItem('rxaudit_onboarding_agreements'));
+    if(k){ _cache.onboardingAgreements=k; return k; } }catch(e){}
+  _cache.onboardingAgreements=[]; return [];
+}
+function saveOnboardingAgreements(list){
+  _cache.onboardingAgreements=list;
+  localStorage.setItem('rxaudit_onboarding_agreements',JSON.stringify(list));
+  _pushToFirebase('onboardingAgreements', list);
+}
+function getActiveOnboardingAgreement(userId, type){
+  var list=getOnboardingAgreements();
+  for(var i=0;i<list.length;i++){
+    if(list[i].userId===userId && list[i].type===type && list[i].status==='active') return list[i];
+  }
+  return null;
+}
+
+function renderOnboardingPage(){
+  var statusCard=document.getElementById('myOnboardingStatusCard');
+  var adminCard=document.getElementById('onboardingAdminCard');
+  var types=['governance','fee'];
+
+  if(statusCard){
+    if(currentUser.role==='nurse'){
+      var rows=types.map(function(type){
+        var def=ONBOARDING_AGREEMENT_TYPES[type];
+        var active=getActiveOnboardingAgreement(currentUser.id,type);
+        return active
+          ? '<p><strong>'+def.label+':</strong> <span class="pill green">Signed</span> by '+active.name+' on '+new Date(active.signedAt).toLocaleString()+' ('+active.version+')</p>'
+          : '<p><strong>'+def.label+':</strong> <span class="pill red">Not signed</span></p>';
+      }).join('');
+      statusCard.innerHTML='<div class="card-title" style="margin-bottom:10px;">My Onboarding Agreements</div>'+rows;
+    } else {
+      statusCard.innerHTML='<div class="card-title" style="margin-bottom:10px;">Onboarding Agreements</div>'
+        +'<div class="alert-box info"><span>📝</span><div>Onboarding Agreements (Governance &amp; Fee) are signed by each Registered Nurse. Use the table below to check signing status, view signed copies, or revoke an agreement if it needs to be re-signed.</div></div>';
+    }
+  }
+
+  types.forEach(function(type){
+    var formCard=document.getElementById(type==='governance'?'onbGovernanceFormCard':'onbFeeFormCard');
+    var textEl=document.getElementById(type==='governance'?'onbGovernanceText':'onbFeeText');
+    if(!formCard)return;
+    if(currentUser.role!=='nurse'){
+      formCard.classList.add('hidden');
+      return;
+    }
+    var active=getActiveOnboardingAgreement(currentUser.id,type);
+    if(active){
+      formCard.classList.add('hidden');
+    } else {
+      formCard.classList.remove('hidden');
+      if(textEl) textEl.innerHTML=ONBOARDING_AGREEMENT_TYPES[type].html(currentUser);
+    }
+  });
+
+  if(adminCard){
+    if(isAdmin()){
+      adminCard.classList.remove('hidden');
+      renderOnboardingAdmin();
+    } else {
+      adminCard.classList.add('hidden');
+    }
+  }
+}
+
+function signOnboardingAgreement(type){
+  var def=ONBOARDING_AGREEMENT_TYPES[type];
+  var prefix=type==='governance'?'onbGovernance':'onbFee';
+  var agreeChk=document.getElementById(prefix+'Agree');
+  if(!agreeChk||!agreeChk.checked){ showToast('Please tick the agreement checkbox before signing'); return; }
+  var name=(document.getElementById(prefix+'Name').value||'').trim();
+  var pin=(document.getElementById(prefix+'Pin').value||'').trim();
+  if(!name){ showToast('Please type your full name to sign'); return; }
+  if(name.toLowerCase()!==String(currentUser.name||'').toLowerCase()){ showToast('Name must match your account name'); return; }
+  if(pin!==String(currentUser.pin||'')){ showToast('Incorrect PIN'); return; }
+
+  var list=getOnboardingAgreements();
+  list.forEach(function(a){
+    if(a.userId===currentUser.id && a.type===type && a.status==='active') a.status='superseded';
+  });
+  list.push({
+    id:Date.now(),
+    userId:currentUser.id,
+    name:currentUser.name,
+    ahpra:currentUser.ahpra||'',
+    clinic:currentUser.clinic||'',
+    type:type,
+    title:def.title,
+    version:def.version,
+    html:def.html(currentUser),
+    signedAt:new Date().toISOString(),
+    status:'active'
+  });
+  saveOnboardingAgreements(list);
+  document.getElementById(prefix+'Name').value='';
+  document.getElementById(prefix+'Pin').value='';
+  showToast(def.label+' signed');
+  renderOnboardingPage();
+}
+
+function renderOnboardingAdmin(){
+  var el=document.getElementById('onboardingAdminTable');
+  if(!el)return;
+  var nurses=getUsers().filter(function(u){return u.active!==false && u.role==='nurse';});
+  var rows=nurses.map(function(u){
+    var cells=['governance','fee'].map(function(type){
+      var active=getActiveOnboardingAgreement(u.id,type);
+      var statusBadge=active
+        ? '<span class="pill green">Signed '+new Date(active.signedAt).toLocaleDateString()+'</span>'
+        : '<span class="pill red">Not signed</span>';
+      var actionBtn=active
+        ? '<button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;" onclick="viewOnboardingAgreement('+active.id+')">View</button>'
+          +' <button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;" onclick="revokeOnboardingAgreement('+active.id+')">Revoke</button>'
+        : '';
+      return '<td>'+statusBadge+'<br>'+actionBtn+'</td>';
+    }).join('');
+    return '<tr><td>'+u.name+'</td><td>'+(u.clinic||'')+'</td>'+cells+'</tr>';
+  }).join('');
+  el.innerHTML='<div class="table-scroll"><table class="table"><thead><tr><th>Nurse</th><th>Clinic</th><th>Governance Agreement</th><th>Fee Agreement</th></tr></thead><tbody>'
+    +(rows||'<tr><td colspan="4" style="text-align:center;color:var(--muted);">No nurses found</td></tr>')+'</tbody></table></div>';
+}
+
+function viewOnboardingAgreement(id){
+  var list=getOnboardingAgreements();
+  var a=list.find(function(x){return x.id===id;});
+  if(!a)return;
+  document.getElementById('onboardingAgreementTitle').textContent='Signed '+a.title;
+  document.getElementById('onboardingAgreementMeta').innerHTML='<p><strong>Name:</strong> '+a.name+'</p>'
+    +'<p><strong>Clinic:</strong> '+(a.clinic||'')+'</p>'
+    +'<p><strong>Status:</strong> '+a.status+'</p>'
+    +'<p><strong>Version:</strong> '+a.version+'</p>'
+    +'<p><strong>Signed:</strong> '+new Date(a.signedAt).toLocaleString()+'</p>';
+  document.getElementById('onboardingAgreementDetail').innerHTML=a.html;
+  document.getElementById('onboardingAgreementModal').classList.add('open');
+}
+function closeOnboardingAgreementModal(){
+  document.getElementById('onboardingAgreementModal').classList.remove('open');
+}
+function revokeOnboardingAgreement(id){
+  if(!confirm('Revoke this Agreement? The nurse will need to re-sign.'))return;
+  var list=getOnboardingAgreements();
+  var a=list.find(function(x){return x.id===id;});
+  if(!a)return;
+  a.status='revoked';
+  saveOnboardingAgreements(list);
+  renderOnboardingPage();
+  showToast('Agreement revoked');
+}
+
 // ── S4 LIVE KEY REGISTER ──
 function getKeyRegister(){
   if(_cache.keyRegister !== null) return _cache.keyRegister;
@@ -1656,6 +2089,15 @@ function _clinicKeyStatusLine(nurse, clinic){
     return '<div style="color:#b7791f;font-size:11px;margin-top:4px;">🔑 Key transfer pending</div>';
   }
   return '<div style="color:var(--green);font-size:11px;font-weight:600;margin-top:4px;">🔑 Keys: All accounted for ✓</div>';
+}
+
+// Dashboard tile summary of onboarding agreement status for a nurse
+function _clinicOnboardingStatusLine(nurse){
+  if(typeof nurse.id !== 'number') return '';
+  var missing=['governance','fee'].filter(function(type){return !getActiveOnboardingAgreement(nurse.id,type);});
+  if(!missing.length) return '';
+  var labels=missing.map(function(type){return ONBOARDING_AGREEMENT_TYPES[type].label;});
+  return '<div style="color:var(--red);font-size:11px;font-weight:600;margin-top:4px;">📝 '+labels.join(' & ')+' not signed</div>';
 }
 
 // Dashboard tile summary of the last S4 stocktake for a clinic
@@ -2284,6 +2726,7 @@ function showPage(id){
   if(id==='meeting'){buildMeetingAttendees();buildMeetingAgenda();buildMeetingActions();refreshMeetingSignoff();checkMonthlyReminder();}
   if(id==='documents')renderDocumentsPage();
   if(id==='keys')renderKeyPage();
+  if(id==='onboarding')renderOnboardingPage();
   window.scrollTo(0,0);
 }
 
@@ -2395,7 +2838,7 @@ function renderDashboard(){
       +'<div style="font-size:11px;color:var(--teal);margin-bottom:4px;">\ud83c\udfe5 '+clinic+'</div>'
       +'<div class="clinic-status"><span class="dot '+(done?'green':'amber')+'"></span>'
       +'<span style="color:'+(done?'var(--green)':'#b7791f')+';font-size:11px;font-weight:600;">'+(done?'Complete':'Pending')+'</span>'
-      +'</div>'+extra+_lastStocktakeStatusLine(clinic)+_clinicKeyStatusLine(nurse,clinic)+'</div>';
+      +'</div>'+extra+_lastStocktakeStatusLine(clinic)+_clinicKeyStatusLine(nurse,clinic)+_clinicOnboardingStatusLine(nurse)+'</div>';
   }).join('');
 
   var recent=records.slice(0,6);
@@ -3366,7 +3809,7 @@ function exportPDF(reportType){
   doc.text('Generated: '+now+'  |  RDP: '+s.rdpName+'  |  AHPRA: '+s.rdpAhpra,14,26);
   doc.setTextColor(0,0,0);
   var y=36;
-  var titles={register:'Drug Register \u2014 Full Audit Report',delivery:'Stock Delivery Log',variance:'Variance & Discrepancy Report',compliance:'Compliance Check History',meetings:'Audit Meeting Minutes',keys:'S4 Key Holder Agreements',all:'Full Audit Package'};
+  var titles={register:'Drug Register \u2014 Full Audit Report',delivery:'Stock Delivery Log',variance:'Variance & Discrepancy Report',compliance:'Compliance Check History',meetings:'Audit Meeting Minutes',keys:'S4 Key Holder Agreements',onboarding:'Onboarding Agreements',all:'Full Audit Package'};
   doc.setFont('helvetica','bold');doc.setFontSize(13);doc.text(titles[reportType]||'Report',14,y);y+=6;
   doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(100,100,100);
   doc.text('Clinic: '+clinicStr+'   Period: '+periodStr,14,y);doc.setTextColor(0,0,0);y+=8;
@@ -3428,6 +3871,11 @@ function exportPDF(reportType){
     var kiRows=getKeyIncidents();
     if(rptClinic)kiRows=kiRows.filter(function(i){return i.clinic===rptClinic;});
     addSection('KEY INCIDENT REGISTER',kiRows,[{header:'Date',get:function(r){return new Date(r.reportedAt).toLocaleDateString();}},{header:'Clinic',get:function(r){return r.clinic;}},{header:'Key',get:function(r){return r.keyLabel;}},{header:'Type',get:function(r){return r.type;}},{header:'Reported By',get:function(r){return r.reportedBy;}},{header:'Status',get:function(r){return r.status;}},{header:'Resolution',get:function(r){return r.resolutionNotes||'—';}}]);
+  }
+  if(reportType==='onboarding'||reportType==='all'){
+    var oaRows=getOnboardingAgreements().filter(function(a){return a.status==='active';});
+    if(rptClinic)oaRows=oaRows.filter(function(a){return a.clinic===rptClinic;});
+    addSection('ONBOARDING AGREEMENTS',oaRows,[{header:'Name',get:function(r){return r.name;}},{header:'Clinic',get:function(r){return r.clinic;}},{header:'Agreement',get:function(r){return r.title;}},{header:'Status',get:function(r){return r.status;}},{header:'Signed',get:function(r){return new Date(r.signedAt).toLocaleString();}},{header:'Version',get:function(r){return r.version;}}]);
   }
   var pc=doc.internal.getNumberOfPages();
   for(var pi=1;pi<=pc;pi++){doc.setPage(pi);doc.setFontSize(7);doc.setTextColor(150,150,150);doc.text('Page '+pi+' of '+pc+' \u2014 Confidential \u2014 RX\u00b7AUDIT \u2014 '+s.rdpName,14,290);}
@@ -3972,7 +4420,8 @@ var _DATA_DOC_MAP = {
   notifications: {cacheKey:'notifications', lsKey:'rxaudit_docs_notify', field:'obj'},
   keyAgreements: {cacheKey:'keyAgreements', lsKey:'rxaudit_key_agreements', field:'list'},
   keyRegister:   {cacheKey:'keyRegister',   lsKey:'rxaudit_key_register', field:'list'},
-  keyIncidents:  {cacheKey:'keyIncidents',  lsKey:'rxaudit_key_incidents', field:'list'}
+  keyIncidents:  {cacheKey:'keyIncidents',  lsKey:'rxaudit_key_incidents', field:'list'},
+  onboardingAgreements: {cacheKey:'onboardingAgreements', lsKey:'rxaudit_onboarding_agreements', field:'list'}
 };
 
 function _refreshUI(){
@@ -3986,6 +4435,10 @@ function _refreshUI(){
     var keysPage=document.getElementById('page-keys');
     if(keysPage && keysPage.classList.contains('active')) renderKeyPage();
   } }catch(e){ console.warn('renderKeyPage refresh failed:', e); }
+  try{ if(typeof renderOnboardingPage==='function'){
+    var onbPage=document.getElementById('page-onboarding');
+    if(onbPage && onbPage.classList.contains('active')) renderOnboardingPage();
+  } }catch(e){ console.warn('renderOnboardingPage refresh failed:', e); }
 }
 
 function _attachRealtimeListeners(){
