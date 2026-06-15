@@ -411,7 +411,7 @@ textarea:focus{border-color:var(--teal);}
       </div>
       <div class="form-row" style="margin-bottom:16px;">
         <div class="field"><label>Nurse</label><select id="complianceClinic"></select></div>
-        <div class="field"><label>Check type</label><select id="complianceType"><option>Daily check</option><option>Weekly check</option></select></div>
+        <div class="field"><label>Check type</label><select id="complianceType"><option>Weekly Check</option></select></div>
       </div>
       <div class="card">
         <div class="card-title" style="margin-bottom:14px;">Storage &amp; Security</div>
@@ -1155,6 +1155,7 @@ var _cache = {
   readReceipts: null,
   notifications: null,
   drugLists: {},
+  removedDrugs: {},
   keyAgreements: null,
   keyRegister: null,
   keyIncidents: null,
@@ -1211,6 +1212,10 @@ function _loadCacheFromFirebase(onDone){
     return _db.collection('drugLists').get();
   }).then(function(snap){
     snap.forEach(function(d){ _cache.drugLists[d.id] = d.data().list || []; });
+    // Load removed drugs
+    return _db.collection('removedDrugs').get();
+  }).then(function(snap){
+    snap.forEach(function(d){ _cache.removedDrugs[d.id] = d.data().list || []; });
     onDone();
   }).catch(function(err){
     console.error('Cache load error:', err);
@@ -1232,6 +1237,11 @@ function _pushToFirebase(key, data){
   if(key === 'drugLists'){
     _db.collection('drugLists').doc(String(data.clinicKey))
       .set({list: data.list}).catch(function(e){ console.warn('FB push drugLists:', e); });
+    return;
+  }
+  if(key === 'removedDrugs'){
+    _db.collection('removedDrugs').doc(String(data.clinicKey))
+      .set({list: data.list}).catch(function(e){ console.warn('FB push removedDrugs:', e); });
     return;
   }
   var payloads = {
@@ -1560,7 +1570,27 @@ function getKnownDrugsForClinic(clinic){
   if(lastRec&&lastRec.drugs){
     lastRec.drugs.forEach(function(d){if(d.drug&&all.indexOf(d.drug)<0)all.push(d.drug);});
   }
+  // Exclude drugs the nurse removed from this clinic's stocktake
+  var removed=getRemovedDrugsForClinic(clinic);
+  if(removed.length) all=all.filter(function(d){return removed.indexOf(d)<0;});
   return all;
+}
+
+function getRemovedDrugsForClinic(clinic){
+  if(!clinic) return [];
+  var clinicKey=clinic.replace(/[ ]+/g,'_').toLowerCase();
+  if(_cache.removedDrugs[clinicKey]!==undefined) return _cache.removedDrugs[clinicKey];
+  try{ var d=JSON.parse(localStorage.getItem('rxaudit_removed_drugs_'+clinicKey));
+    if(d){ _cache.removedDrugs[clinicKey]=d; return d; } }catch(e){}
+  _cache.removedDrugs[clinicKey]=[]; return [];
+}
+
+function saveRemovedDrugsForClinic(clinic, removed){
+  if(!clinic) return;
+  var clinicKey=clinic.replace(/\s+/g,'_').toLowerCase();
+  _cache.removedDrugs[clinicKey]=removed;
+  try{ localStorage.setItem('rxaudit_removed_drugs_'+clinicKey,JSON.stringify(removed)); }catch(e){}
+  _pushToFirebase('removedDrugs',{clinicKey:clinicKey,list:removed});
 }
 
 function saveKnownDrugsForClinic(clinic, drugs){
@@ -2748,6 +2778,12 @@ function deleteDrugRow(btn){
   _cache.drugLists[clinicKey]=drugs;
   localStorage.setItem('rxaudit_drugs_'+clinicKey,JSON.stringify(drugs));
   _pushToFirebase('drugLists',{clinicKey:clinicKey,list:drugs});
+  // Remember this drug was removed so it does not reappear (e.g. DEFAULT_DRUGS)
+  var removed=getRemovedDrugsForClinic(clinic);
+  if(removed.indexOf(drugName)<0){
+    removed=removed.concat([drugName]);
+    saveRemovedDrugsForClinic(clinic,removed);
+  }
   showToast('Removed "'+drugName+'" from stocktake');
 }
 
@@ -3137,6 +3173,8 @@ function loadLastStocktake(){
     delivNotes.push(pd.drug+': +'+pd.qty+' units from delivery on '+pd.date);
   });
   var allDrugs=[...new Set([...DEFAULT_DRUGS,...lastDrugs])];
+  var removed=getRemovedDrugsForClinic(clinic);
+  if(removed.length) allDrugs=allDrugs.filter(function(d){return removed.indexOf(d)<0;});
   var container=document.getElementById('drugRows');
   container.innerHTML=allDrugs.map(function(name){return drugRowHTML(name,lastBalances[name]||0);}).join('');
   var banner=document.getElementById('lastStocktakeBanner');
@@ -3185,6 +3223,14 @@ function addCustomDrug(){
   if(existing.indexOf(name)>=0){showToast('That drug is already listed');return;}
   document.getElementById('drugRows').insertAdjacentHTML('beforeend',drugRowHTML(name,0));
   document.getElementById('customDrugName').value='';
+  // If this drug was previously removed for this clinic, un-remove it
+  var clinic=document.getElementById('stockClinic')?document.getElementById('stockClinic').value:'';
+  if(clinic){
+    var removed=getRemovedDrugsForClinic(clinic);
+    if(removed.indexOf(name)>=0){
+      saveRemovedDrugsForClinic(clinic,removed.filter(function(d){return d!==name;}));
+    }
+  }
 }
 function submitStocktake(){
   var ahpra=document.getElementById('nurseAhpra').value;
@@ -3266,6 +3312,8 @@ function getDeliveryDrugOptions(clinic){
   if(lastRec&&lastRec.drugs){
     lastRec.drugs.forEach(function(d){if(drugs.indexOf(d.drug)<0)drugs.push(d.drug);});
   }
+  var removed=getRemovedDrugsForClinic(cl);
+  if(removed.length) drugs=drugs.filter(function(d){return removed.indexOf(d)<0;});
   if(!drugs.length) return '';
   return drugs.map(function(d){return'<option value="'+d+'">'+d+'</option>';}).join('');
 }
@@ -4750,6 +4798,21 @@ function _attachRealtimeListeners(){
       if(changed) _refreshUI();
     }, function(err){ console.warn('onSnapshot drugLists error:', err); });
   }catch(e){ console.warn('Failed to attach drugLists listener:', e); }
+
+  try{
+    _db.collection('removedDrugs').onSnapshot(function(snap){
+      var changed = false;
+      snap.docChanges().forEach(function(change){
+        var ckey = change.doc.id;
+        var incoming = change.doc.data().list || [];
+        if(JSON.stringify(_cache.removedDrugs[ckey]) === JSON.stringify(incoming)) return;
+        _cache.removedDrugs[ckey] = incoming;
+        try{ localStorage.setItem('rxaudit_removed_drugs_'+ckey, JSON.stringify(incoming)); }catch(e){}
+        changed = true;
+      });
+      if(changed) _refreshUI();
+    }, function(err){ console.warn('onSnapshot removedDrugs error:', err); });
+  }catch(e){ console.warn('Failed to attach removedDrugs listener:', e); }
 }
 
 // ============================================================
