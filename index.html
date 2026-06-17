@@ -291,10 +291,10 @@ textarea:focus{border-color:var(--teal);}
       <div class="nav-item" data-page="onboarding" onclick="showPage('onboarding')"><span class="nav-icon">📝</span> Onboarding Agreements</div>
     </div>
     <div class="sidebar-section hidden" id="adminNav">
-      <div class="sidebar-label">Admin Only</div>
+      <div class="sidebar-label">Admin</div>
       <div class="nav-item" data-page="users" onclick="showPage('users')"><span class="nav-icon">👥</span> Accounts</div>
       <div class="nav-item" data-page="billing" onclick="showPage('billing')"><span class="nav-icon">💳</span> Billing</div>
-      <div class="nav-item" data-page="settings" onclick="showPage('settings')"><span class="nav-icon">⚙️</span> Settings</div>
+      <div class="nav-item" id="settingsNavItem" data-page="settings" onclick="showPage('settings')"><span class="nav-icon">⚙️</span> Settings</div>
     </div>
     <!-- Mobile bottom nav bar -->
     <div class="sidebar-section mobile-nav">
@@ -860,8 +860,9 @@ textarea:focus{border-color:var(--teal);}
               <option value="">-- select --</option>
             </select>
           </div>
-          <button class="btn btn-primary" onclick="saveBillingDay()">Save Schedule</button>
-          <button class="btn btn-navy" onclick="runBillingNow()" style="margin-left:auto;">⚡ Run Billing Now</button>
+          <button class="btn btn-primary" id="saveBillingDayBtn" onclick="saveBillingDay()">Save Schedule</button>
+          <button class="btn btn-ghost" onclick="syncBillingStatus()" style="margin-left:auto;">🔄 Sync Status</button>
+          <button class="btn btn-navy" id="runBillingNowBtn" onclick="runBillingNow()">⚡ Run Billing Now</button>
         </div>
         <div style="font-size:12px;color:var(--muted);margin-top:10px;">Invoices are created in Xero and emailed to nurses automatically. GoCardless collects payment on the due date.</div>
       </div>
@@ -890,7 +891,8 @@ textarea:focus{border-color:var(--teal);}
         <div><div class="page-title">Accounts</div><div class="page-sub">Manage admin and nurse accounts</div></div>
         <div style="display:flex;gap:8px;">
           <button class="btn btn-ghost" onclick="showPage('dashboard')">← Back</button>
-          <button class="btn btn-ghost" onclick="openUserModal(null,'admin')">+ New admin</button>
+          <button class="btn btn-ghost" id="newAdminBtn" onclick="openUserModal(null,'admin')">+ New admin</button>
+          <button class="btn btn-ghost" id="newNurseAdminBtn" onclick="openUserModal(null,'nurse_admin')">+ New nurse admin</button>
           <button class="btn btn-primary" onclick="openUserModal(null,'nurse')">+ New nurse</button>
         </div>
       </div>
@@ -2784,6 +2786,8 @@ function visibleClinics(){
 
 
 function isAdmin(){ return currentUser&&(currentUser.role==='rdp'||currentUser.role==='admin'); }
+function isNurseAdmin(){ return currentUser&&currentUser.role==='nurse_admin'; }
+function canAccessAdmin(){ return isAdmin()||isNurseAdmin(); }
 
 function timeSince(iso){
   var diff=Math.floor((Date.now()-new Date(iso).getTime())/1000);
@@ -2878,16 +2882,17 @@ function doLogin(){
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('appShell').classList.remove('hidden');
   document.getElementById('userNameEl').textContent=user.name;
-  var roleLabel=user.role==='rdp'?'Responsible Drug Person':user.role==='admin'?'Administrator':user.clinic;
+  var roleLabel=user.role==='rdp'?'Responsible Drug Person':user.role==='admin'?'Administrator':user.role==='nurse_admin'?'Nurse Admin':user.clinic;
   document.getElementById('userRoleEl').textContent=roleLabel;
   var av=document.getElementById('userAvatar');
   var initials=user.name.split(' ').map(function(w){return w[0];}).join('').slice(0,2).toUpperCase();
   av.textContent=initials;
   av.className='user-avatar '+(user.role==='rdp'?'avatar-rdp':user.role==='admin'?'avatar-admin':'avatar-nurse');
-  document.getElementById('adminNav').classList.toggle('hidden',!isAdmin());
-  document.getElementById('headerTitle').textContent=isAdmin()?'S4 Drug Compliance \u2014 QLD Health':user.clinic+' \u2014 S4 Compliance';
+  document.getElementById('adminNav').classList.toggle('hidden',!canAccessAdmin());
+  document.getElementById('settingsNavItem').classList.toggle('hidden',!isAdmin());
+  document.getElementById('headerTitle').textContent=isAdmin()||isNurseAdmin()?'S4 Drug Compliance \u2014 QLD Health':user.clinic+' \u2014 S4 Compliance';
   var mobileAdmin=document.getElementById('mobileAdminBtn');
-  if(mobileAdmin)mobileAdmin.classList.toggle('hidden',!isAdmin());
+  if(mobileAdmin)mobileAdmin.classList.toggle('hidden',!canAccessAdmin());
   var mobileSettings=document.getElementById('mobileSettingsBtn');
   if(mobileSettings)mobileSettings.classList.toggle('hidden',!isAdmin());
   initApp();
@@ -2990,13 +2995,16 @@ function initApp(){
   renderDashboard();
   renderLog();
   if(isAdmin()){renderUsers();renderClinics();renderSuppliers();}
+  else if(isNurseAdmin()){renderUsers();}
 }
 
 // ============================================================
 // NAVIGATION
 // ============================================================
 function showPage(id){
-  if(['users','settings'].includes(id)&&!isAdmin()){showToast('Admin access only');return;}
+  if(id==='settings'&&!isAdmin()){showToast('Admin access only');return;}
+  if(id==='users'&&!canAccessAdmin()){showToast('Admin access only');return;}
+  if(id==='billing'&&!canAccessAdmin()){showToast('Admin access only');return;}
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
   document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
   document.getElementById('page-'+id).classList.add('active');
@@ -4195,23 +4203,33 @@ function renderUsers(){
   if(!document.getElementById('usersTable'))return;
   var users=getUsers();var el=document.getElementById('usersTable');
   if(!el)return;
+  var newAdminBtn=document.getElementById('newAdminBtn');
+  var newNurseAdminBtn=document.getElementById('newNurseAdminBtn');
+  if(newAdminBtn) newAdminBtn.classList.toggle('hidden',!isAdmin());
+  if(newNurseAdminBtn) newNurseAdminBtn.classList.toggle('hidden',!isAdmin());
   var rows=users.map(function(u){
-    var rolePill=u.role==='rdp'?'<span class="pill teal">RDP</span>':u.role==='admin'?'<span class="pill blue">Admin</span>':'<span class="pill amber">Nurse</span> '+u.clinic;
-    var actions=u.role!=='rdp'
-      ?'<button class="btn btn-ghost btn-sm" onclick="editUser('+u.id+')">Edit</button> '
-        +'<button class="btn btn-ghost btn-sm" onclick="viewNurseDocs('+u.id+')" style="color:var(--teal);">Files</button> '
-        +'<button class="btn btn-ghost btn-sm" onclick="resetPin('+u.id+')">Reset PIN</button> '
-        +'<button class="btn btn-red btn-sm" onclick="toggleUserActive('+u.id+')">'+(u.active!==false?'Disable':'Enable')+'</button> '
-        +'<button class="btn btn-red btn-sm" onclick="deleteUser('+u.id+')">Delete</button>'
-      :'<span style="font-size:11px;color:var(--muted);">Primary RDP</span>';
+    var rolePill=u.role==='rdp'?'<span class="pill teal">RDP</span>':u.role==='admin'?'<span class="pill blue">Admin</span>':u.role==='nurse_admin'?'<span class="pill blue" style="background:#7c3aed;">Nurse Admin</span>':'<span class="pill amber">Nurse</span> '+u.clinic;
+    var canEdit=u.role!=='rdp'&&(isAdmin()||(isNurseAdmin()&&u.role==='nurse'));
+    var actions=u.role==='rdp'
+      ?'<span style="font-size:11px;color:var(--muted);">Primary RDP</span>'
+      :canEdit
+        ?'<button class="btn btn-ghost btn-sm" onclick="editUser('+u.id+')">Edit</button> '
+          +'<button class="btn btn-ghost btn-sm" onclick="viewNurseDocs('+u.id+')" style="color:var(--teal);">Files</button> '
+          +'<button class="btn btn-ghost btn-sm" onclick="resetPin('+u.id+')">Reset PIN</button> '
+          +'<button class="btn btn-red btn-sm" onclick="toggleUserActive('+u.id+')">'+(u.active!==false?'Disable':'Enable')+'</button> '
+          +'<button class="btn btn-red btn-sm" onclick="deleteUser('+u.id+')">Delete</button>'
+        :'<span style="font-size:11px;color:var(--muted);">—</span>';
     var status=u.active!==false?'<span class="pill green">Active</span>':'<span class="pill red">Disabled</span>';
-    return '<tr><td style="font-weight:600;">'+u.name+'</td><td style="font-family:monospace;font-size:12px;">'+u.username+'</td><td>'+rolePill+'</td><td style="font-family:monospace;font-size:12px;">'+(u.ahpra||'\u2014')+'</td><td style="font-size:12px;">'+(u.email||'\u2014')+'</td><td style="font-size:12px;">'+(u.emergency||'\u2014')+'</td><td>'+status+'</td><td style="text-align:right;white-space:nowrap;">'+actions+'</td></tr>';
+    var onboardDate=u.role==='rdp'?'\u2014':u.id>1000000000000?new Date(u.id).toLocaleDateString('en-AU',{day:'2-digit',month:'2-digit',year:'numeric'}):'\u2014';
+    return '<tr><td style="font-weight:600;">'+u.name+'</td><td style="font-family:monospace;font-size:12px;">'+u.username+'</td><td>'+rolePill+'</td><td style="font-family:monospace;font-size:12px;">'+(u.ahpra||'\u2014')+'</td><td style="font-size:12px;">'+(u.email||'\u2014')+'</td><td style="font-size:12px;">'+(u.emergency||'\u2014')+'</td><td style="font-size:12px;">'+onboardDate+'</td><td>'+status+'</td><td style="text-align:right;white-space:nowrap;">'+actions+'</td></tr>';
   }).join('');
-  el.innerHTML='<table class="table"><thead><tr><th>Name</th><th>Username</th><th>Role</th><th>AHPRA</th><th>Email</th><th>Emergency</th><th>Status</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>';
+  el.innerHTML='<table class="table"><thead><tr><th>Name</th><th>Username</th><th>Role</th><th>AHPRA</th><th>Email</th><th>Emergency</th><th>Onboarded</th><th>Status</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>';
 }
 function openUserModal(user,defaultRole){
   var role=user?user.role:defaultRole;
-  document.getElementById('userModalTitle').textContent=user?(role==='nurse'?'Edit nurse':'Edit admin'):(role==='nurse'?'New nurse account':'New admin account');
+  var titleMap={nurse:'Nurse',admin:'Admin',nurse_admin:'Nurse Admin'};
+  var t=titleMap[role]||'Admin';
+  document.getElementById('userModalTitle').textContent=(user?'Edit ':'New ')+t+' account';
   document.getElementById('editUserId').value=user?user.id:'';
   document.getElementById('editUserRole').value=role;
   document.getElementById('adminFields').classList.toggle('hidden',role==='nurse');
@@ -4238,6 +4256,7 @@ function saveUser(){
   var id=document.getElementById('editUserId').value;
   var role=document.getElementById('editUserRole').value;
   var isNurse=role==='nurse';
+  if(isNurseAdmin()&&role!=='nurse'){showToast('Nurse admins can only create nurse accounts');return;}
   var name=document.getElementById(isNurse?'unName':'umName').value.trim();
   var username=document.getElementById(isNurse?'unUsername':'umUsername').value.trim().toLowerCase();
   var ahpra=document.getElementById(isNurse?'unAhpra':'umAhpra').value.trim();
@@ -4729,6 +4748,12 @@ function getBillingConfig(){ return _cache.billingConfig || {}; }
 function getBillingData(nurseId){ return _cache.billingData[String(nurseId)] || {}; }
 
 function renderBillingPage(){
+  var readOnly=isNurseAdmin();
+  var hide=function(id){var el=document.getElementById(id);if(el)el.classList.toggle('hidden',readOnly);};
+  hide('saveBillingDayBtn');
+  hide('runBillingNowBtn');
+  var billingDaySelect=document.getElementById('billingDaySelect');
+  if(billingDaySelect) billingDaySelect.disabled=readOnly;
   renderBillingConfig();
   renderBillingRates();
   renderBillingHistory();
@@ -4791,19 +4816,24 @@ function renderBillingRates(){
       + '<td style="font-size:12px;color:var(--muted);">' + (u.clinic || '—') + '</td>'
       + '<td>' + statusHtml + '</td>'
       + '<td style="font-size:12px;color:var(--muted);">' + lastPaid + '</td>'
-      + '<td><div style="display:flex;align-items:center;gap:6px;">'
-      + '<span style="font-size:12px;color:var(--muted);">$</span>'
-      + '<input type="number" min="0" step="1" value="' + rate + '" id="rate_' + u.id + '" style="width:90px;padding:5px 8px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:13px;">'
-      + '<span style="font-size:11px;color:var(--muted);">+ GST</span>'
-      + '</div></td>'
+      + '<td>' + (isNurseAdmin()
+          ? '<span style="font-size:13px;">$' + rate.toFixed(2) + ' <span style="font-size:11px;color:var(--muted);">+ GST</span></span>'
+          : '<div style="display:flex;align-items:center;gap:6px;"><span style="font-size:12px;color:var(--muted);">$</span>'
+            + '<input type="number" min="0" step="1" value="' + rate + '" id="rate_' + u.id + '" style="width:90px;padding:5px 8px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:13px;">'
+            + '<span style="font-size:11px;color:var(--muted);">+ GST</span></div>')
+      + '</td>'
+      + '<td>' + (isNurseAdmin()
+          ? '<span style="font-size:12px;color:var(--muted);">' + (b.startDate || '—') + '</span>'
+          : '<input type="date" id="startDate_' + u.id + '" value="' + (b.startDate || '') + '" style="padding:5px 8px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:13px;">')
+      + '</td>'
       + '<td style="text-align:right;white-space:nowrap;">'
       + (total ? '<span style="font-size:12px;color:var(--muted);margin-right:8px;">Total $' + total.toFixed(2) + '</span>' : '')
-      + '<button class="btn btn-primary btn-sm" onclick="saveNurseRate(' + u.id + ')">Save</button>'
+      + (isNurseAdmin() ? '' : '<button class="btn btn-primary btn-sm" onclick="saveNurseRate(' + u.id + ')">Save</button>')
       + '</td>'
       + '</tr>';
   }).join('');
   el.innerHTML = '<table class="table"><thead><tr>'
-    + '<th>Nurse</th><th>Clinic</th><th>Status</th><th>Last activity</th><th>Monthly rate (ex GST)</th><th style="text-align:right;"></th>'
+    + '<th>Nurse</th><th>Clinic</th><th>Status</th><th>Last activity</th><th>Monthly rate (ex GST)</th><th>Start date</th><th style="text-align:right;"></th>'
     + '</tr></thead><tbody>' + rows + '</tbody></table>';
 
   // Populate history filter
@@ -4820,9 +4850,11 @@ function renderBillingRates(){
 
 function saveNurseRate(nurseId){
   var inp = document.getElementById('rate_' + nurseId);
+  var dateInp = document.getElementById('startDate_' + nurseId);
   if(!inp) return;
   var rate = parseFloat(inp.value) || 0;
-  _db.collection('billing').doc(String(nurseId)).set({monthlyRate: rate}, {merge: true})
+  var startDate = dateInp ? dateInp.value : '';
+  _db.collection('billing').doc(String(nurseId)).set({monthlyRate: rate, startDate: startDate || null}, {merge: true})
     .then(function(){ showToast('✓ Rate saved'); renderBillingRates(); })
     .catch(function(e){ showToast('Save failed: ' + e.message); });
 }
@@ -4842,8 +4874,9 @@ function renderBillingHistory(){
   var rows = payments.map(function(p){
     var statusColor = p.status === 'PAID' ? 'green' : (p.status === 'OVERDUE' ? 'red' : 'amber');
     var statusLabel = p.status === 'PAID' ? '✓ Paid' : (p.status === 'OVERDUE' ? '⚠ Overdue' : (p.status === 'VOIDED' ? 'Voided' : 'Pending'));
+    var createdStr = p._createdAt ? p._createdAt.toLocaleString('en-AU', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:true,timeZone:'Australia/Brisbane'}) : (p.date || '—');
     return '<tr>'
-      + '<td style="font-size:12px;color:var(--muted);">' + (p.date || '—') + '</td>'
+      + '<td style="font-size:12px;color:var(--muted);">' + createdStr + '</td>'
       + '<td style="font-weight:500;">' + (p.nurseName || '—') + '</td>'
       + '<td style="font-size:12px;color:var(--muted);">' + (p.xeroInvoiceNumber || '—') + '</td>'
       + '<td style="font-size:13px;">$' + (p.amount || 0).toFixed(2) + '</td>'
@@ -4858,6 +4891,22 @@ function renderBillingHistory(){
     + '</tr></thead><tbody>' + rows + '</tbody></table>';
 }
 
+function syncBillingStatus(){
+  if(!_functions){ showToast('Firebase Functions not initialised'); return; }
+  showToast('Syncing with Xero…');
+  var fn = _functions.httpsCallable('syncBillingStatus');
+  fn({}).then(function(result){
+    var r = result.data;
+    if(r.updated === 0){
+      showToast('✓ All statuses up to date');
+    } else {
+      showToast('✓ Updated ' + r.updated + ' invoice(s): ' + r.results.map(function(x){ return x.nurse + ' → ' + x.to; }).join(', '));
+    }
+  }).catch(function(e){
+    showToast('⚠ Sync failed: ' + e.message);
+  });
+}
+
 function runBillingNow(){
   if(!confirm('Run billing now? This will create Xero invoices for all nurses with a monthly rate set and send them immediately.')) return;
   if(!_functions){ showToast('Firebase Functions not initialised'); return; }
@@ -4866,8 +4915,12 @@ function runBillingNow(){
   fn({}).then(function(result){
     var r = result.data;
     if(r.success){
-      var summary = (r.results || []).map(function(x){ return x.nurse + ': ' + x.status; }).join(', ');
-      showToast('✓ Billing run complete — ' + summary.slice(0, 120));
+        var errors = (r.results || []).filter(function(x){ return x.status === 'error'; });
+      var summary = (r.results || []).map(function(x){ return x.nurse + ': ' + x.status + (x.error ? ' (' + x.error + ')' : ''); }).join('\n');
+      if(errors.length){
+        alert('⚠ Billing errors:\n\n' + errors.map(function(x){ return x.nurse + ':\n' + x.error; }).join('\n\n'));
+      }
+      showToast('✓ Billing run complete — ' + (r.results||[]).map(function(x){return x.nurse+': '+x.status;}).join(', ').slice(0,120));
       renderBillingRates();
       renderBillingHistory();
     }
@@ -5054,7 +5107,9 @@ function _attachRealtimeListeners(){
     _db.collection('billingPayments').orderBy('createdAt','desc').limit(200)
       .onSnapshot(function(snap){
         _cache.billingPayments = snap.docs.map(function(d){
-          return Object.assign({_id: d.id}, d.data());
+          var data = d.data();
+          if(data.createdAt && data.createdAt.toDate) data._createdAt = data.createdAt.toDate();
+          return Object.assign({_id: d.id}, data);
         });
         var billingPage = document.getElementById('page-billing');
         if(billingPage && billingPage.classList.contains('active')) renderBillingHistory();

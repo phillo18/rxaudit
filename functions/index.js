@@ -157,9 +157,21 @@ async function runBillingForAllNurses(clientId, clientSecret) {
   const nurses = users.filter(u => u.role === 'nurse' && u.active !== false);
 
   const now = new Date();
-  const monthLabel = now.toLocaleString('en-AU', { month: 'long', year: 'numeric', timeZone: 'Australia/Brisbane' });
-  const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  const dueDateStr = now.toISOString().split('T')[0];
+  const brisbaneNow = new Date(now.toLocaleString('en-US', { timeZone: 'Australia/Brisbane' }));
+  const monthKey = `${brisbaneNow.getFullYear()}-${String(brisbaneNow.getMonth() + 1).padStart(2, '0')}`;
+  const dueDateFmt = `${brisbaneNow.getFullYear()}-${String(brisbaneNow.getMonth() + 1).padStart(2, '0')}-${String(brisbaneNow.getDate()).padStart(2, '0')}`;
+
+  // Load billing config once
+  const configDoc = await db.collection('billing').doc('config').get();
+  const billingDay = configDoc.exists ? (configDoc.data().billingDay || 1) : 1;
+
+  // Advance billing: invoice sent today covers next month's cycle
+  const nextMonth = new Date(brisbaneNow.getFullYear(), brisbaneNow.getMonth() + 1, billingDay);
+  const advanceLabel = nextMonth.toLocaleString('en-AU', { month: 'long', year: 'numeric' });
+
+  // Previous billing date (same day last month) for pro-rata cycle calculation
+  const prevBillingDate = new Date(brisbaneNow.getFullYear(), brisbaneNow.getMonth() - 1, billingDay);
+
   const results = [];
 
   for (const nurse of nurses) {
@@ -170,51 +182,131 @@ async function runBillingForAllNurses(clientId, clientSecret) {
       const monthlyRate = billing.monthlyRate || 0;
       if (!monthlyRate) { results.push({ nurse: nurse.name, status: 'skipped', reason: 'no rate set' }); continue; }
 
+      // Pro-rata: nurse started after previous billing date → first invoice covers start date to today
+      let chargeAmount = monthlyRate;
+      let invoiceDescription = `RxAudit Platform — ${advanceLabel} (advance)`;
+      if (billing.startDate) {
+        const startDate = new Date(billing.startDate + 'T00:00:00');
+        if (startDate > prevBillingDate) {
+          // Pro-rata: covers startDate → today (this billing day)
+          const cycleDays = Math.round((brisbaneNow - prevBillingDate) / 86400000);
+          const activeDays = Math.round((brisbaneNow - startDate) / 86400000);
+          if (activeDays <= 0) {
+            results.push({ nurse: nurse.name, status: 'skipped', reason: 'start date is in the future' });
+            continue;
+          }
+          chargeAmount = Math.round(monthlyRate * activeDays / cycleDays * 100) / 100;
+          const startFmt = startDate.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+          const endFmt = brisbaneNow.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+          invoiceDescription = `RxAudit Platform — ${startFmt} to ${endFmt} (pro-rata)`;
+        }
+      }
+
       const existing = await db.collection('billingPayments')
         .where('nurseId', '==', nurseId).where('month', '==', monthKey).limit(1).get();
-      if (!existing.empty) { results.push({ nurse: nurse.name, status: 'skipped', reason: 'already invoiced this month' }); continue; }
+      let activeInvoice = null;
+      for (const doc of existing.docs) {
+        const data = doc.data();
+        if (data.status === 'VOIDED') continue;
+        if (data.xeroInvoiceId) {
+          try {
+            const invCheck = await axios.get(`${XERO_API_BASE}/Invoices/${data.xeroInvoiceId}`, {
+              headers: { Authorization: `Bearer ${token}`, 'xero-tenant-id': tenantId },
+            });
+            const xeroStatus = invCheck.data.Invoices[0].Status;
+            if (xeroStatus === 'VOIDED' || xeroStatus === 'DELETED') {
+              await doc.ref.update({ status: xeroStatus });
+              continue;
+            }
+          } catch (_) {}
+        }
+        activeInvoice = doc;
+        break;
+      }
+      if (activeInvoice) { results.push({ nurse: nurse.name, status: 'skipped', reason: 'already invoiced this month' }); continue; }
 
       const contactId = await ensureXeroContact(nurseId, nurse.name, nurse.email || '', token, tenantId);
-      const gst = Math.round(monthlyRate * 0.1 * 100) / 100;
-      const invoiceNumber = `RXAUDIT-${nurse.name.replace(/\s+/g, '').toUpperCase().slice(0, 6)}-${monthKey.replace('-', '')}`;
+      console.log(`[billing] ${nurse.name}: contact ${contactId}, charge ${chargeAmount}, desc: ${invoiceDescription}`);
 
-      const invoiceRes = await axios.post(
-        `${XERO_API_BASE}/Invoices`,
-        {
-          Invoices: [{
-            Type: 'ACCREC',
-            Contact: { ContactID: contactId },
-            DueDate: dueDateStr,
-            InvoiceNumber: invoiceNumber,
-            Status: 'AUTHORISED',
-            SentToContact: true,
-            LineItems: [{
-              Description: `RxAudit Platform — ${monthLabel}`,
-              Quantity: 1,
-              UnitAmount: monthlyRate,
-              AccountCode: '200',
-              TaxType: 'OUTPUT2',
+      const gst = Math.round(chargeAmount * 0.1 * 100) / 100;
+      const yymm = monthKey.slice(2).replace('-', '');
+      const words = nurse.name.trim().split(/\s+/);
+      const initials2 = words.map(w => w[0]).join('').toUpperCase().slice(0, 2);
+      const initials3 = words.map(w => w[0]).join('').toUpperCase().slice(0, 3);
+      const invoiceNumberBase = `${initials2}${yymm}`;
+
+      let invoiceRes;
+      for (let attempt = 0; attempt <= 9; attempt++) {
+        const invoiceNumber = attempt === 0 ? invoiceNumberBase : attempt === 1 ? `${initials3}${yymm}` : `${initials3}${yymm}${attempt}`;
+        let isDuplicateNumber = false;
+        try {
+        invoiceRes = await axios.post(
+          `${XERO_API_BASE}/Invoices`,
+          {
+            Invoices: [{
+              Type: 'ACCREC',
+              Contact: { ContactID: contactId },
+              DueDate: dueDateFmt,
+              InvoiceNumber: invoiceNumber,
+              Status: 'AUTHORISED',
+              SentToContact: false,
+              LineItems: [{
+                Description: invoiceDescription,
+                Quantity: 1,
+                UnitAmount: chargeAmount,
+                AccountCode: '200',
+              }],
             }],
-          }],
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'xero-tenant-id': tenantId,
-            'Content-Type': 'application/json',
           },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'xero-tenant-id': tenantId,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+        } catch (xeroErr) {
+          const xeroData = xeroErr.response ? xeroErr.response.data : null;
+          const xeroStr = JSON.stringify(xeroData || '');
+          const dupError = xeroStr.includes('duplicate') || xeroStr.includes('not of valid status for modification');
+          if (dupError && attempt < 9) { isDuplicateNumber = true; }
+          else {
+            const xeroDetail = xeroData ? JSON.stringify(xeroData) : xeroErr.message;
+            console.error(`[billing] ${nurse.name}: Xero invoice API error:`, xeroDetail);
+            throw new Error('Xero invoice error: ' + xeroDetail);
+          }
         }
-      );
+        if (!isDuplicateNumber) break;
+      }
 
       const inv = invoiceRes.data.Invoices[0];
+      if (inv.HasErrors) {
+        const errs = (inv.ValidationErrors || []).map(e => e.Message).join('; ');
+        console.error(`[billing] ${nurse.name}: Xero validation errors:`, errs);
+        throw new Error('Xero validation: ' + errs);
+      }
+
+      if (nurse.email) {
+        try {
+          await axios.post(
+            `${XERO_API_BASE}/Invoices/${inv.InvoiceID}/Email`,
+            {},
+            { headers: { Authorization: `Bearer ${token}`, 'xero-tenant-id': tenantId, 'Content-Type': 'application/json' } }
+          );
+        } catch (emailErr) {
+          console.warn(`[billing] ${nurse.name}: email send failed (invoice still created):`, emailErr.message);
+        }
+      }
+
       await db.collection('billingPayments').add({
         nurseId,
         nurseName: nurse.name,
         nurseClinic: nurse.clinic || '',
-        amount: monthlyRate,
+        amount: chargeAmount,
         gst,
         total: monthlyRate + gst,
-        date: dueDateStr,
+        date: dueDateFmt,
         month: monthKey,
         xeroInvoiceId: inv.InvoiceID,
         xeroInvoiceNumber: inv.InvoiceNumber,
@@ -224,16 +316,17 @@ async function runBillingForAllNurses(clientId, clientSecret) {
 
       await db.collection('billing').doc(nurseId).set({
         status: 'PENDING',
-        lastInvoiceDate: dueDateStr,
+        lastInvoiceDate: dueDateFmt,
         lastInvoiceId: inv.InvoiceID,
         lastInvoiceNumber: inv.InvoiceNumber,
-        lastInvoiceAmount: monthlyRate + gst,
+        lastInvoiceAmount: chargeAmount + gst,
       }, { merge: true });
 
       results.push({ nurse: nurse.name, status: 'invoiced', invoice: inv.InvoiceNumber });
     } catch (e) {
-      console.error(`Billing failed for ${nurse.name}:`, e.response ? JSON.stringify(e.response.data) : e.message);
-      results.push({ nurse: nurse.name, status: 'error', error: e.message });
+      const detail = e.response ? JSON.stringify(e.response.data) : e.message;
+      console.error(`Billing failed for ${nurse.name}:`, detail);
+      results.push({ nurse: nurse.name, status: 'error', error: detail });
     }
   }
   return results;
@@ -262,6 +355,45 @@ exports.monthlyBillingRun = onSchedule(
   }
 );
 
+exports.syncBillingStatus = onCall(
+  { secrets: [XERO_CLIENT_ID, XERO_CLIENT_SECRET] },
+  async () => {
+    try {
+      const token = await getXeroToken();
+      const tenantId = await getXeroTenantId();
+      const snap = await db.collection('billingPayments')
+        .where('status', 'in', ['PENDING', 'OVERDUE']).get();
+      const results = [];
+      for (const doc of snap.docs) {
+        const data = doc.data();
+        if (!data.xeroInvoiceId) continue;
+        try {
+          const invRes = await axios.get(`${XERO_API_BASE}/Invoices/${data.xeroInvoiceId}`, {
+            headers: { Authorization: `Bearer ${token}`, 'xero-tenant-id': tenantId },
+          });
+          const inv = invRes.data.Invoices[0];
+          const xeroStatus = inv.Status;
+          if (xeroStatus !== data.status) {
+            const update = { status: xeroStatus };
+            if (xeroStatus === 'PAID') update.paidDate = new Date().toISOString().split('T')[0];
+            await doc.ref.update(update);
+            await db.collection('billing').doc(data.nurseId).set({
+              status: xeroStatus === 'PAID' ? 'PAID' : xeroStatus === 'VOIDED' ? 'VOIDED' : 'OVERDUE',
+              ...(xeroStatus === 'PAID' ? { lastPaidDate: new Date().toISOString().split('T')[0] } : {}),
+            }, { merge: true });
+            results.push({ nurse: data.nurseName, from: data.status, to: xeroStatus });
+          }
+        } catch (e) {
+          console.warn('syncBillingStatus: failed for', data.nurseName, e.message);
+        }
+      }
+      return { success: true, updated: results.length, results };
+    } catch (e) {
+      throw new HttpsError('internal', e.message);
+    }
+  }
+);
+
 exports.triggerBillingNow = onCall(
   { secrets: [XERO_CLIENT_ID, XERO_CLIENT_SECRET] },
   async () => {
@@ -269,7 +401,9 @@ exports.triggerBillingNow = onCall(
       const results = await runBillingForAllNurses();
       return { success: true, results };
     } catch (e) {
-      throw new HttpsError('internal', e.message);
+      const detail = e.response ? JSON.stringify(e.response.data) : e.message;
+      console.error('triggerBillingNow fatal error:', detail);
+      throw new HttpsError('internal', detail);
     }
   }
 );
