@@ -83,7 +83,7 @@ async function ensureXeroContact(nurseId, nurseName, nurseEmail, token, tenantId
 // ── XERO OAUTH ─────────────────────────────────────────────────
 
 exports.xeroAuth = onRequest(
-  { secrets: [XERO_CLIENT_ID, XERO_CLIENT_SECRET] },
+  { secrets: [XERO_CLIENT_ID, XERO_CLIENT_SECRET], invoker: 'public' },
   (req, res) => {
     const params = new URLSearchParams({
       response_type: 'code',
@@ -97,7 +97,7 @@ exports.xeroAuth = onRequest(
 );
 
 exports.xeroCallback = onRequest(
-  { secrets: [XERO_CLIENT_ID, XERO_CLIENT_SECRET] },
+  { secrets: [XERO_CLIENT_ID, XERO_CLIENT_SECRET], invoker: 'public' },
   async (req, res) => {
     try {
       const { code } = req.query;
@@ -277,7 +277,7 @@ exports.triggerBillingNow = onCall(
 // ── XERO WEBHOOK ───────────────────────────────────────────────
 
 exports.xeroWebhook = onRequest(
-  { secrets: [XERO_CLIENT_ID, XERO_CLIENT_SECRET, XERO_WEBHOOK_KEY] },
+  { secrets: [XERO_CLIENT_ID, XERO_CLIENT_SECRET, XERO_WEBHOOK_KEY], invoker: 'public' },
   async (req, res) => {
     try {
       const rawBody = req.rawBody ? req.rawBody.toString('utf8') : JSON.stringify(req.body);
@@ -329,7 +329,7 @@ exports.xeroWebhook = onRequest(
 
 // ── STATUS ENDPOINT ────────────────────────────────────────────
 
-exports.xeroStatus = onRequest(async (req, res) => {
+exports.xeroStatus = onRequest({ invoker: 'public' }, async (req, res) => {
   res.set('Access-Control-Allow-Origin', '*');
   try {
     const doc = await db.collection('billing').doc('config').get();
