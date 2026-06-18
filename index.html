@@ -308,6 +308,7 @@ textarea:focus{border-color:var(--teal);}
       <div class="nav-item" data-page="keys" onclick="showPage('keys')"><span class="nav-icon">🔑</span>Keys</div>
       <div class="nav-item" data-page="onboarding" onclick="showPage('onboarding')"><span class="nav-icon">📝</span>Onboarding</div>
       <div class="nav-item hidden" id="mobileAdminBtn" data-page="users" onclick="showPage('users')"><span class="nav-icon">👥</span>Admin</div>
+      <div class="nav-item hidden" id="mobileBillingBtn" data-page="billing" onclick="showPage('billing')"><span class="nav-icon">💳</span>Billing</div>
       <div class="nav-item hidden" id="mobileSettingsBtn" data-page="settings" onclick="showPage('settings')"><span class="nav-icon">⚙️</span>Settings</div>
     </div>
   </div>
@@ -2893,6 +2894,8 @@ function doLogin(){
   document.getElementById('headerTitle').textContent=isAdmin()||isNurseAdmin()?'S4 Drug Compliance \u2014 QLD Health':user.clinic+' \u2014 S4 Compliance';
   var mobileAdmin=document.getElementById('mobileAdminBtn');
   if(mobileAdmin)mobileAdmin.classList.toggle('hidden',!canAccessAdmin());
+  var mobileBilling=document.getElementById('mobileBillingBtn');
+  if(mobileBilling)mobileBilling.classList.toggle('hidden',!canAccessAdmin());
   var mobileSettings=document.getElementById('mobileSettingsBtn');
   if(mobileSettings)mobileSettings.classList.toggle('hidden',!isAdmin());
   initApp();
