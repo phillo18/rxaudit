@@ -188,7 +188,7 @@ textarea:focus{border-color:var(--teal);}
 /* ===== MOBILE / IPHONE STYLES ===== */
 @media(max-width:768px){
   /* Prevent iOS Safari from auto-zooming the page when a field is focused */
-  input,select,textarea{font-size:16px!important;}
+  input,select,textarea{font-size:16px!important;max-width:100%;box-sizing:border-box;}
   .layout{flex-direction:column;}
   .sidebar{width:100%;min-height:auto;padding:0;order:2;position:fixed;bottom:0;left:0;right:0;z-index:200;box-shadow:0 -2px 12px rgba(0,0,0,0.2);}
   .sidebar-section{display:none;}
@@ -4532,10 +4532,10 @@ function renderSharedDocs(isNurse){
       +'</tr>';
   }).join('');
 
-  html+='<table class="table"><thead><tr>'
+  html+='<div class="table-scroll"><table class="table"><thead><tr>'
     +'<th>File name</th><th>Type</th><th>Size</th><th>Uploaded</th><th>Status</th>'
     +'<th style="text-align:right;"></th>'
-    +'</tr></thead><tbody>'+rows+'</tbody></table>';
+    +'</tr></thead><tbody>'+rows+'</tbody></table></div>';
   listEl.innerHTML=html;
 }
 
