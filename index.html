@@ -2921,6 +2921,7 @@ function fillClinicSelect(id,includeAll){
   var sel=document.getElementById(id);if(!sel)return;
   var html='';
   if(isAdmin()){
+    sel.disabled=false;sel.style.background='';sel.style.color='';
     if(includeAll)html+='<option value="">All nurses</option>';
     // Admin: show nurses with their clinic
     var nurses=getUsers().filter(function(u){return u.role==='nurse'&&u.active!==false;});
