@@ -1836,6 +1836,7 @@ function submitQuickOnboard(){
   var nurseId=document.getElementById('qobNurse').value;
   var nurse=nurseId?getUsers().find(function(u){return u.id===Number(nurseId);}):null;
   var adminCopy=document.getElementById('qobAdminCopy').checked;
+  var rdp=getUsers().find(function(u){return u.role==='rdp';});
 
   var keyLabels=[];
   if(document.getElementById('qobKey1').checked) keyLabels.push('S4 Drug Fridge');
@@ -1865,10 +1866,11 @@ function submitQuickOnboard(){
         id:Date.now()+count,
         clinic:clinic,
         label:label+' (Admin Copy)',
-        holderId:null,holderName:null,
-        status:'unassigned',
+        holderId:rdp?rdp.id:null,
+        holderName:rdp?rdp.name:null,
+        status:rdp?'held':'unassigned',
         pendingToId:null,pendingToName:null,
-        history:[{date:now,action:'Key registered via Quick Onboard (admin copy)',fromName:'',toName:'Admin',by:currentUser.name}]
+        history:[{date:now,action:'Key registered via Quick Onboard (admin copy)',fromName:'',toName:rdp?rdp.name:'Admin',by:currentUser.name}]
       });
       count++;
     }
@@ -1929,8 +1931,8 @@ function renderKeyRegisterAdmin(){
   if(!el)return;
   var filterSel=document.getElementById('keyClinicFilter');
   var filterClinic=filterSel?filterSel.value:'';
-  var nurses=getUsers().filter(function(u){return u.active!==false && u.role!=='admin' && u.role!=='rdp';});
-  if(filterClinic) nurses=nurses.filter(function(u){return u.clinic===filterClinic;});
+  var nurses=getUsers().filter(function(u){return u.active!==false && u.role!=='admin';});
+  if(filterClinic) nurses=nurses.filter(function(u){return u.role==='rdp'||u.clinic===filterClinic;});
   var rows=nurses.map(function(u){
     var active=getActiveKeyAgreement(u.id);
     var statusBadge=active
