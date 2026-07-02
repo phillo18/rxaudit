@@ -4,6 +4,7 @@
     "runtime": "nodejs22"
   },
   "hosting": {
+    "site": "rx-audit",
     "public": ".",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**", "functions/**"],
     "rewrites": []
