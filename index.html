@@ -692,6 +692,14 @@ textarea:focus{border-color:var(--teal);}
         </div>
       </div>
 
+      <!-- Admin: clinic filter -->
+      <div class="card hidden" id="keyClinicFilterCard" style="padding:12px 16px;">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <label style="font-size:13px;font-weight:600;white-space:nowrap;">Filter by Clinic:</label>
+          <select id="keyClinicFilter" class="select" style="max-width:280px;" onchange="renderKeyAdminSections()"></select>
+        </div>
+      </div>
+
       <!-- Admin: live key register -->
       <div class="card hidden" id="keyRegisterLiveAdminCard">
         <div class="card-title" style="margin-bottom:14px;display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;">
@@ -1728,10 +1736,22 @@ function renderKeyPage(){
     }
   }
 
+  var filterCard=document.getElementById('keyClinicFilterCard');
+  if(filterCard){
+    if(isAdmin()){
+      filterCard.classList.remove('hidden');
+      var filterSel=document.getElementById('keyClinicFilter');
+      var clinics=_keyClinicsList();
+      filterSel.innerHTML='<option value="">All Clinics</option>'
+        +clinics.map(function(c){return '<option value="'+c+'">'+c+'</option>';}).join('');
+    } else {
+      filterCard.classList.add('hidden');
+    }
+  }
+
   if(adminCard){
     if(isAdmin()){
       adminCard.classList.remove('hidden');
-      renderKeyRegisterAdmin();
     } else {
       adminCard.classList.add('hidden');
     }
@@ -1743,7 +1763,6 @@ function renderKeyPage(){
   if(liveCard){
     if(isAdmin()){
       liveCard.classList.remove('hidden');
-      renderKeyRegisterLiveAdmin();
     } else {
       liveCard.classList.add('hidden');
     }
@@ -1753,11 +1772,18 @@ function renderKeyPage(){
   if(incidentCard){
     if(isAdmin()){
       incidentCard.classList.remove('hidden');
-      renderKeyIncidentAdmin();
     } else {
       incidentCard.classList.add('hidden');
     }
   }
+
+  if(isAdmin()) renderKeyAdminSections();
+}
+
+function renderKeyAdminSections(){
+  renderKeyRegisterLiveAdmin();
+  renderKeyIncidentAdmin();
+  renderKeyRegisterAdmin();
 }
 
 function renderKeyAgreementChecklist(){
@@ -1805,7 +1831,10 @@ function signKeyAgreement(){
 function renderKeyRegisterAdmin(){
   var el=document.getElementById('keyRegisterTable');
   if(!el)return;
+  var filterSel=document.getElementById('keyClinicFilter');
+  var filterClinic=filterSel?filterSel.value:'';
   var nurses=getUsers().filter(function(u){return u.active!==false && u.role!=='admin' && u.role!=='rdp';});
+  if(filterClinic) nurses=nurses.filter(function(u){return u.clinic===filterClinic;});
   var rows=nurses.map(function(u){
     var active=getActiveKeyAgreement(u.id);
     var statusBadge=active
@@ -2437,7 +2466,10 @@ function renderMyClinicKeys(){
 function renderKeyRegisterLiveAdmin(){
   var el=document.getElementById('keyRegisterLiveTable');
   if(!el)return;
+  var filterSel=document.getElementById('keyClinicFilter');
+  var filterClinic=filterSel?filterSel.value:'';
   var keys=getKeyRegister();
+  if(filterClinic) keys=keys.filter(function(k){return k.clinic===filterClinic;});
   if(!keys.length){
     el.innerHTML='<p style="font-size:13px;color:var(--muted);">No keys registered yet. Click "Add Key" to register your clinics’ S4 drug safe keys.</p>';
     return;
@@ -2706,7 +2738,10 @@ function submitKeyIncident(){
 function renderKeyIncidentAdmin(){
   var el=document.getElementById('keyIncidentTable');
   if(!el)return;
+  var filterSel=document.getElementById('keyClinicFilter');
+  var filterClinic=filterSel?filterSel.value:'';
   var incidents=getKeyIncidents();
+  if(filterClinic) incidents=incidents.filter(function(inc){return inc.clinic===filterClinic;});
   if(!incidents.length){
     el.innerHTML='<p style="font-size:13px;color:var(--muted);">No key incidents reported.</p>';
     return;
