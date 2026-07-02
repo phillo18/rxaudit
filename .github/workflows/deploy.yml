@@ -16,7 +16,7 @@ jobs:
           node-version: 22
 
       - name: Install Firebase CLI
-        run: npm install -g firebase-tools
+        run: npm install -g firebase-tools@12
 
       - name: Install function dependencies
         run: npm install
